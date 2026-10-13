@@ -1,0 +1,30 @@
+{
+  "package": "Atlas Gastronomic Standards Pack",
+  "version": "1.0.0",
+  "generated": "2026-10-13",
+  "format": "hybrid",
+  "governance": {
+    "strict_rigor": true,
+    "human_approval_required": true,
+    "autonomous_publication": false
+  },
+  "contents": [
+    "Atlas_Gastronomic_Manual_Editorial_v1.0.pdf",
+    "README.md",
+    "docs/01-editorial-standard.md",
+    "docs/02-agent-governance.md",
+    "docs/03-workflow.md",
+    "docs/04-research-protocol.md",
+    "docs/05-data-model.md",
+    "docs/06-quality-gates.md",
+    "examples/ingredient.example.json",
+    "examples/recipe.example.json",
+    "notion-templates/Ingredients.csv",
+    "notion-templates/Recipe_Ingredients.csv",
+    "notion-templates/Recipes.csv",
+    "notion-templates/Reviews.csv",
+    "notion-templates/Sources.csv",
+    "schemas/ingredient.schema.json",
+    "schemas/recipe.schema.json"
+  ]
+}

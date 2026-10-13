@@ -1,0 +1,18 @@
+{
+  "ingredient_id": "morcov",
+  "canonical_name": "carrot",
+  "localized_names": [
+    "morcov"
+  ],
+  "category": "vegetable",
+  "food_state": "crud",
+  "common_units": [
+    "g"
+  ],
+  "density_g_per_ml": null,
+  "allergens": [],
+  "storage_notes": "Păstrare la rece, în condiții adecvate.",
+  "substitution_notes": null,
+  "source_ids": [],
+  "editorial_status": "unverified"
+}

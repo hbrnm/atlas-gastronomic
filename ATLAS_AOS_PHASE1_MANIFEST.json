@@ -1,0 +1,295 @@
+{
+  "package": "Atlas AOS PHASE 1 Foundation",
+  "version": "1.0.0",
+  "generated": "2026-10-13",
+  "target_repository": "hbrnm/atlas-gastronomic",
+  "status": "prepared_for_local_application_not_pushed",
+  "standards_baseline": "1.0.0",
+  "files": [
+    {
+      "path": ".agents/rules/00-core-governance.md",
+      "size_bytes": 709,
+      "sha256": "9eb55fb25478cec086b58e3222bce6520284bfdac97f5b8787bafd9cec4ebb47"
+    },
+    {
+      "path": ".agents/rules/01-session-management.md",
+      "size_bytes": 789,
+      "sha256": "9c751be42fb4dd65583d35904064781ad3f3bacfb9018680209d4663b4d682f2"
+    },
+    {
+      "path": ".agents/rules/02-autonomy-and-permissions.md",
+      "size_bytes": 654,
+      "sha256": "193b3511c0a95ea5d0f09483a04479d9ae88025e62c48c3e91e2591d58fe6947"
+    },
+    {
+      "path": ".agents/rules/03-editorial-integrity.md",
+      "size_bytes": 684,
+      "sha256": "50b9a717948bd1fca2f1030686b7f273cbebc90bbfeb16228c94ec94a5502842"
+    },
+    {
+      "path": ".agents/rules/04-research-and-sources.md",
+      "size_bytes": 849,
+      "sha256": "8b4f60cb033f39333b31f9c7649b69fc3711bb7a1a1f5c9f0ebbef765ac40137"
+    },
+    {
+      "path": ".agents/rules/05-culinary-quality.md",
+      "size_bytes": 789,
+      "sha256": "ea3788794dad9f3c2bd813eef5ae33b6467968ffe7d01ea02a838332ed48ec8c"
+    },
+    {
+      "path": ".agents/rules/06-data-integrity.md",
+      "size_bytes": 674,
+      "sha256": "ea68ebcf69274361a82e69f0526044027b07a60077b53cefe0ae16081f6e4288"
+    },
+    {
+      "path": ".agents/rules/07-human-approval.md",
+      "size_bytes": 527,
+      "sha256": "5ca8c9e22460c0df251522b435f0454a46cc50819f2a550b4c781ffcb0a50528"
+    },
+    {
+      "path": ".agents/skills/contradiction-analysis/SKILL.md",
+      "size_bytes": 1098,
+      "sha256": "9dc0376a31416108f907a52f96ba3551c82649953a166bcb20ad0cb20f80ec30"
+    },
+    {
+      "path": ".agents/skills/culinary-review/SKILL.md",
+      "size_bytes": 1099,
+      "sha256": "8f204fba4adc1094627ef79f7c97df138d184baa7a9503f763dc5aa9596c09c6"
+    },
+    {
+      "path": ".agents/skills/data-validation/SKILL.md",
+      "size_bytes": 1133,
+      "sha256": "df6d5d03cf672b7e30ec5c10f154590bca6a3afbb2395b64633eb93ff745d6cd"
+    },
+    {
+      "path": ".agents/skills/decision-management/SKILL.md",
+      "size_bytes": 1067,
+      "sha256": "da92f73e516fa2c6f3d68c6f4fe18c7ddb720f3a52d9080c4ea040a8dcec3ef1"
+    },
+    {
+      "path": ".agents/skills/editorial-review/SKILL.md",
+      "size_bytes": 1102,
+      "sha256": "f42e2e8358b2baa04525bdcae32afffe6d2f5bc72b8af0801074ae2c3b467a83"
+    },
+    {
+      "path": ".agents/skills/recipe-development/SKILL.md",
+      "size_bytes": 1199,
+      "sha256": "0467b22dbf65f879d50024df59931e095be8a9e82ca806af8482a6c296986956"
+    },
+    {
+      "path": ".agents/skills/release-review/SKILL.md",
+      "size_bytes": 1077,
+      "sha256": "e57a4244f25a7d65caa017a41b9394d2850d0d31dc602c7ea7eb0161abbd71dd"
+    },
+    {
+      "path": ".agents/skills/research-recipe/SKILL.md",
+      "size_bytes": 1168,
+      "sha256": "66e06bc2827a501253661efec8ede50b8b78306fb139d31cd514cc9cc5ac917e"
+    },
+    {
+      "path": ".agents/skills/session-handoff/SKILL.md",
+      "size_bytes": 1113,
+      "sha256": "5b73a87fddd99689e4500ae75fb998a81e7453cf8c8fb684fd90f955ac56771b"
+    },
+    {
+      "path": ".agents/skills/session-start/SKILL.md",
+      "size_bytes": 1071,
+      "sha256": "a06ba697de839430b3fe1ae13741c1b248909786beee35c45632f25cdbff3b29"
+    },
+    {
+      "path": ".agents/skills/source-verification/SKILL.md",
+      "size_bytes": 1128,
+      "sha256": "30568ba0514717a58c1fca9c8b329985581be515bcd6f8d75420ce18e7cc13c3"
+    },
+    {
+      "path": ".agents/skills/task-planning/SKILL.md",
+      "size_bytes": 1078,
+      "sha256": "51a63bd1e6367293a4c5500b36c50864bb366aea20d5ff951f187fe07fbfb62a"
+    },
+    {
+      "path": "GEMINI.md",
+      "size_bytes": 4690,
+      "sha256": "e7b3673a80fd0925b35645b4b6a5b03db8e7c331d87a04ffd3ab294336d32a95"
+    },
+    {
+      "path": "README.md",
+      "size_bytes": 1124,
+      "sha256": "153eb753a260f1a2420cc1da41e4a76bb14f17f07aa3bd145cf1941ebd52763d"
+    },
+    {
+      "path": "plans/ATLAS_AOS_PHASE_0_AUDIT.md",
+      "size_bytes": 3341,
+      "sha256": "9419ed27eb47ba080780bb3e12f6460257d4625d59b04b69131a1acc884af5ee"
+    },
+    {
+      "path": "plans/CURRENT_PLAN.md",
+      "size_bytes": 1668,
+      "sha256": "c4ae3cc212451d9c45874eaf9e0c9e8192609b737ca6bc54137acc181295f968"
+    },
+    {
+      "path": "plans/ROADMAP.md",
+      "size_bytes": 1382,
+      "sha256": "8636eb207cf7b2e768a6d5f90bb54eaf92c2d9a023b899ddea6efebe96d28240"
+    },
+    {
+      "path": "project-memory/DECISION_LOG.md",
+      "size_bytes": 1011,
+      "sha256": "254c9d53709297b919298c86a2994e3aa0490a28782b19063dab369ed117c363"
+    },
+    {
+      "path": "project-memory/INDEX.md",
+      "size_bytes": 1646,
+      "sha256": "46334bb50a3aa39cfb957a05619e28fa12d5bcf4cde3dd5775d82ce7d524c25e"
+    },
+    {
+      "path": "project-memory/KNOWLEDGE_BASE.md",
+      "size_bytes": 1031,
+      "sha256": "b04eb568a396a643ac5d29f40e4601d504357eeb3a9ff1f11c6dddab4c64b577"
+    },
+    {
+      "path": "project-memory/OPEN_QUESTIONS.md",
+      "size_bytes": 1046,
+      "sha256": "4c333be5b959afe6f03b9a95e3cd0f94ae5e25a64608f44b08dd7e2811922eb9"
+    },
+    {
+      "path": "project-memory/PROJECT_IDENTITY.md",
+      "size_bytes": 1235,
+      "sha256": "2d453a71206980d7bc208190f10203eb2b66af2a1147c371c03296c99c676db7"
+    },
+    {
+      "path": "project-memory/PROJECT_STATE.md",
+      "size_bytes": 1241,
+      "sha256": "c3e6fa722a3fe2b9bdaf7f9352cb8233f0be2ce8c552e4ea17b2bb04c488a5c3"
+    },
+    {
+      "path": "project-memory/RISK_REGISTER.md",
+      "size_bytes": 1007,
+      "sha256": "49deeae03b270e26942476ee7c806c9901de61e33e885750e4d2f448e3bc4a3b"
+    },
+    {
+      "path": "project-memory/SESSION_STATE.md",
+      "size_bytes": 1082,
+      "sha256": "ffae167a8ec16ec29928564a455468a31409457ecb43db5d1c5970771740bf9b"
+    },
+    {
+      "path": "project-memory/TASK_REGISTRY.md",
+      "size_bytes": 692,
+      "sha256": "92205ff6e053ffc1fa578bbbd7816791b316adf182578f5e72127dc68ff04a37"
+    },
+    {
+      "path": "project-memory/decisions/DEC-0001-atlas-scope.md",
+      "size_bytes": 258,
+      "sha256": "f1e0df9e816d33067c2283b6a421ea92d7815d541a81c831da6a9efeb7d8cb6e"
+    },
+    {
+      "path": "project-memory/decisions/DEC-0002-editorial-governance.md",
+      "size_bytes": 232,
+      "sha256": "4c0555f82822de657027dc3257c772658778426b423d7904b37e427102c9e595"
+    },
+    {
+      "path": "project-memory/decisions/DEC-0003-antigravity-surfaces.md",
+      "size_bytes": 257,
+      "sha256": "7034816a2e0eb264340829531df759b8033f758795e14548e1439bb49c8e71ba"
+    },
+    {
+      "path": "project-memory/decisions/DEC-0004-autonomy-boundaries.md",
+      "size_bytes": 319,
+      "sha256": "58786ee7ff5bfb2f3f90635381d266e298b6fa331aaf2739baf3d966a9ac9612"
+    },
+    {
+      "path": "project-memory/decisions/DEC-0005-standards-versioning.md",
+      "size_bytes": 268,
+      "sha256": "b3d6d6b9c7b868088b625d29e367af22fe057f5190552d2a461f957ce780a108"
+    },
+    {
+      "path": "standards/v1.0.0/Atlas_Gastronomic_Manual_Editorial_v1.0.pdf",
+      "size_bytes": 50360,
+      "sha256": "965e5acba1f9d6b564f7c1cbb1e281e5312da2e744fc3f335133975fc884d774"
+    },
+    {
+      "path": "standards/v1.0.0/MANIFEST.json",
+      "size_bytes": 873,
+      "sha256": "ab45d66f790d107dcdebd87dded8cadc5e4d9e64c66dcc2651b062acaead1596"
+    },
+    {
+      "path": "standards/v1.0.0/README.md",
+      "size_bytes": 1926,
+      "sha256": "fd0fbbec6000dca7398341b364d95b737cc22700b72011e74f0390538d012f85"
+    },
+    {
+      "path": "standards/v1.0.0/docs/01-editorial-standard.md",
+      "size_bytes": 5386,
+      "sha256": "6bfda1b54fcbcbfce4d5fac073923634d0786b4fccc1a7ddeac9311d4411db37"
+    },
+    {
+      "path": "standards/v1.0.0/docs/02-agent-governance.md",
+      "size_bytes": 2445,
+      "sha256": "c1fdb63e5ef3be729e869352ecd9f1a3f98ae27912e59da92c414a472abdc93c"
+    },
+    {
+      "path": "standards/v1.0.0/docs/03-workflow.md",
+      "size_bytes": 2159,
+      "sha256": "367de878c278d65377f07814e6f1ea628bfabe65ba42ac7268c05c908672dbfb"
+    },
+    {
+      "path": "standards/v1.0.0/docs/04-research-protocol.md",
+      "size_bytes": 1423,
+      "sha256": "41ed154befb0d4f379d2a386d9e7f70e7d337e881349fc03d7b7608da4473402"
+    },
+    {
+      "path": "standards/v1.0.0/docs/05-data-model.md",
+      "size_bytes": 1549,
+      "sha256": "ebee2eb21ce77fde91d2ba2e56a1579bc635aa2fe03a0e8d9a19c26c8b007699"
+    },
+    {
+      "path": "standards/v1.0.0/docs/06-quality-gates.md",
+      "size_bytes": 1165,
+      "sha256": "c40d35acac94331871088c93688e7d6f262dbd7bc11e273b04e234ad6e2d69c1"
+    },
+    {
+      "path": "standards/v1.0.0/examples/ingredient.example.json",
+      "size_bytes": 384,
+      "sha256": "9b24439cf4d147893dd815515bf9b959338658bca7d851a0181c46c0009fe26a"
+    },
+    {
+      "path": "standards/v1.0.0/examples/recipe.example.json",
+      "size_bytes": 2773,
+      "sha256": "26fc8904319036563f2a9f1e658ecd02fc115614e7088e92bd13e63d8c2fb6c8"
+    },
+    {
+      "path": "standards/v1.0.0/notion-templates/Ingredients.csv",
+      "size_bytes": 124,
+      "sha256": "b7d8304f1d411abcf6dc1712851b4fed1f5fe522e4947a6e13a7850afbadcc4b"
+    },
+    {
+      "path": "standards/v1.0.0/notion-templates/Recipe_Ingredients.csv",
+      "size_bytes": 104,
+      "sha256": "a0ed20e75c953ae36f4584d038847294cf9ede10536638065d21487a5978f890"
+    },
+    {
+      "path": "standards/v1.0.0/notion-templates/Recipes.csv",
+      "size_bytes": 213,
+      "sha256": "782fe26fbdecd55d42f76403f9199076bdddb8411b0fbbadbb2f4313ab7e908e"
+    },
+    {
+      "path": "standards/v1.0.0/notion-templates/Reviews.csv",
+      "size_bytes": 144,
+      "sha256": "f4cd6bf9dba0546c528b7da4f060246202b623b66585e4339dccdc4e7ce6e9d5"
+    },
+    {
+      "path": "standards/v1.0.0/notion-templates/Sources.csv",
+      "size_bytes": 142,
+      "sha256": "50646d8425617045503a86791edb0ec8c16263bf4ca1aad6c9249310e91b0caa"
+    },
+    {
+      "path": "standards/v1.0.0/schemas/ingredient.schema.json",
+      "size_bytes": 1464,
+      "sha256": "1d86b5e8e3c8d087cbbf049b2276c0f5cc7c6887112d2ae89345e5dc3cd9ab79"
+    },
+    {
+      "path": "standards/v1.0.0/schemas/recipe.schema.json",
+      "size_bytes": 6643,
+      "sha256": "567ecd976fbf1842fa5c02300b059d3dcddc2add6605d75c8b815a50a8deeb44"
+    }
+  ]
+}

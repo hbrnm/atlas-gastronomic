@@ -1,0 +1,106 @@
+{
+  "recipe_id": "exemplu-supa-de-legume",
+  "version": "1.0.0",
+  "title": "Supă simplă de legume — exemplu de structură",
+  "alternate_names": [],
+  "culinary_tradition": null,
+  "region": null,
+  "category": "soup",
+  "summary": "Exemplu tehnic pentru demonstrarea structurii; nu este prezentat ca rețetă canonică validată.",
+  "status": "draft",
+  "yield": {
+    "quantity": 4,
+    "unit": "porții",
+    "approx_final_weight_g": null
+  },
+  "timing": {
+    "active_minutes": 20,
+    "total_minutes": 45
+  },
+  "difficulty": "easy",
+  "equipment": [
+    "oală medie",
+    "cuțit",
+    "tocător"
+  ],
+  "ingredients": [
+    {
+      "ingredient_id": "morcov",
+      "name": "morcov",
+      "quantity": 200,
+      "unit": "g",
+      "preparation": "curățat, tăiat cuburi",
+      "group": "legume",
+      "optional": false,
+      "notes": null
+    },
+    {
+      "ingredient_id": "ceapa",
+      "name": "ceapă",
+      "quantity": 120,
+      "unit": "g",
+      "preparation": "curățată, tocată",
+      "group": "legume",
+      "optional": false,
+      "notes": null
+    },
+    {
+      "ingredient_id": "apa",
+      "name": "apă",
+      "quantity": 1.5,
+      "unit": "l",
+      "preparation": null,
+      "group": "lichid",
+      "optional": false,
+      "notes": null
+    }
+  ],
+  "steps": [
+    {
+      "step_number": 1,
+      "instruction": "Pregătește și taie legumele în bucăți apropiate ca dimensiune.",
+      "duration_minutes": 10,
+      "temperature_c": null,
+      "heat_level": null,
+      "success_cue": "Bucățile au dimensiuni relativ uniforme.",
+      "ingredient_refs": [
+        "morcov",
+        "ceapa"
+      ]
+    },
+    {
+      "step_number": 2,
+      "instruction": "Pune legumele și apa în oală, adu la fierbere, apoi redu focul.",
+      "duration_minutes": 10,
+      "temperature_c": null,
+      "heat_level": "mediu, apoi mic",
+      "success_cue": "Fierbere liniștită, fără clocot violent.",
+      "ingredient_refs": [
+        "morcov",
+        "ceapa",
+        "apa"
+      ]
+    },
+    {
+      "step_number": 3,
+      "instruction": "Fierbe până când legumele sunt fragede, verificând textura înainte de oprirea focului.",
+      "duration_minutes": 25,
+      "temperature_c": null,
+      "heat_level": "mic",
+      "success_cue": "Legumele se pătrund ușor cu vârful cuțitului.",
+      "ingredient_refs": [
+        "morcov",
+        "ceapa"
+      ]
+    }
+  ],
+  "allergens": [],
+  "storage": "Răcește prompt și păstrează la frigider în recipient închis; stabilește termenul în funcție de procedurile locale de siguranță.",
+  "nutrition_estimate": null,
+  "claims": [],
+  "sources": [],
+  "editorial_notes": [
+    "Exemplu demonstrativ, nu conținut editorial aprobat."
+  ],
+  "review": null
+}
