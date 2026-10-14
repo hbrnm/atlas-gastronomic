@@ -311,17 +311,18 @@ test('Browser Acceptance Test: Complete Atlas Gastronomic Recipe Core V1 Scenari
   await step3Controls[4].type('Varza este fragedă');
 
   // Test Step Reordering: Move Step 1 down
+  stepCards = await page.$$('.step-card');
   const step1Down = await stepCards[0].$('button[title="Mută pasul mai jos"]');
-  await step1Down?.click();
-  await new Promise((r) => setTimeout(r, 100));
+  await step1Down?.evaluate((b: any) => b.click());
+  await new Promise((r) => setTimeout(r, 250));
   stepCards = await page.$$('.step-card');
   const newStep1Text = await stepCards[0].$eval('textarea', (el: any) => el.value);
   assert.ok(newStep1Text.includes('Omogenizează carnea'));
 
   // Move back up
   const step1Up = await stepCards[1].$('button[title="Mută pasul mai sus"]');
-  await step1Up?.click();
-  await new Promise((r) => setTimeout(r, 100));
+  await step1Up?.evaluate((b: any) => b.click());
+  await new Promise((r) => setTimeout(r, 250));
   console.log('✓ Scenario C passed');
 
   // =========================================================================

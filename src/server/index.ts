@@ -2,20 +2,21 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import { initDatabase } from './db.js';
 import { RecipeRepository } from './repository.js';
 import { createExpressApp } from './app.js';
 
+import { Recipe } from '../shared/types.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export async function startServer(customPort?: number, customDbPath?: string) {
+export async function startServer(customPort?: number, customDbPath?: string, seedRecipes?: Recipe[]) {
   const PORT = customPort || (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000);
   const isProd = process.env.NODE_ENV === 'production';
 
   // 1. Initialize SQLite Database
-  const db = initDatabase(customDbPath);
+  const db = initDatabase(customDbPath, seedRecipes);
   const repo = new RecipeRepository(db);
 
   // 2. Create Express app with API routes
@@ -24,6 +25,7 @@ export async function startServer(customPort?: number, customDbPath?: string) {
   // 3. Frontend Integration (Vite in Dev, Static in Prod)
   let viteInstance: any = null;
   if (!isProd) {
+    const { createServer: createViteServer } = await import('vite');
     const clientRoot = path.resolve(__dirname, '../client');
     const vite = await createViteServer({
       server: { middlewareMode: true },

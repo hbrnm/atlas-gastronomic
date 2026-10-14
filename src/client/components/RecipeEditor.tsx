@@ -6,13 +6,15 @@ import { IngredientEditor } from './IngredientEditor.js';
 import { StepEditor } from './StepEditor.js';
 import { ValidationPanel } from './ValidationPanel.js';
 import { RecipePreview } from './RecipePreview.js';
-import { ArrowLeft, Save, Eye, Layers, ListOrdered, FileText, Check, AlertCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Eye, Layers, ListOrdered, FileText, Check, AlertCircle, Trash2, ChefHat } from 'lucide-react';
 
 interface RecipeEditorProps {
   initialRecipe: Recipe;
   onBackToList: () => void;
   onSave: (recipe: Recipe) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onOpenCookMode?: () => void;
+  onOpenDetailView?: () => void;
   isSaving: boolean;
   saveError: string | null;
 }
@@ -22,6 +24,8 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
   onBackToList,
   onSave,
   onDelete,
+  onOpenCookMode,
+  onOpenDetailView,
   isSaving,
   saveError,
 }) => {
@@ -94,7 +98,7 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="editor-header-actions">
           {/* Status Indicator */}
           <span className="badge badge-draft">
             {recipe.status === 'draft' ? 'Schiță (Draft)' : recipe.status}
@@ -131,6 +135,30 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
             <Save size={16} />
             {isSaving ? 'Se salvează...' : isDirty ? 'Salvează Schița' : 'Salvat'}
           </button>
+
+          {onOpenCookMode && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={onOpenCookMode}
+              title="Testează rețeta în Modul de Gătit"
+            >
+              <ChefHat size={15} />
+              Cook Mode
+            </button>
+          )}
+
+          {onOpenDetailView && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={onOpenDetailView}
+              title="Vezi rețeta în formatul pentru utilizatori"
+            >
+              <Eye size={15} />
+              Vezi Rețeta
+            </button>
+          )}
 
           {/* Delete Button */}
           {onDelete && recipe.id && (

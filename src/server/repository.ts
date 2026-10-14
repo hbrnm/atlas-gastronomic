@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { Recipe, RecipeIngredient, RecipeStep } from '../shared/types.js';
+import { Recipe, RecipeIngredient, RecipeStep, StepIngredientAllocation } from '../shared/types.js';
 import { insertRecipeIntoDb } from './db.js';
 
 export interface RecipeListItem {
@@ -15,6 +15,7 @@ export interface RecipeListItem {
   yield_quantity: number;
   yield_unit: string;
   total_minutes: number | null;
+  lead_time_hours?: number | null;
   difficulty: string | null;
   ingredients_count: number;
   steps_count: number;
@@ -30,7 +31,7 @@ export class RecipeRepository {
       SELECT 
         r.id, r.recipe_id, r.version, r.title, r.summary,
         r.culinary_tradition, r.region, r.category, r.status,
-        r.yield_quantity, r.yield_unit, r.total_minutes, r.difficulty,
+        r.yield_quantity, r.yield_unit, r.total_minutes, r.lead_time_hours, r.difficulty,
         r.created_at, r.updated_at,
         (SELECT COUNT(*) FROM recipe_ingredients i WHERE i.recipe_id = r.id) as ingredients_count,
         (SELECT COUNT(*) FROM recipe_steps s WHERE s.recipe_id = r.id) as steps_count
@@ -78,28 +79,91 @@ export class RecipeRepository {
     `).all(recipeRow.id) as any[];
 
     const steps: RecipeStep[] = stepRows.map((s) => {
-      const refs = this.db.prepare(`
-        SELECT ingredient_id FROM step_ingredient_refs 
+      const refRows = this.db.prepare(`
+        SELECT ingredient_id, quantity_used_in_step, unit, component, notes
+        FROM step_ingredient_refs 
         WHERE step_id = ?
-      `).all(s.id) as { ingredient_id: string }[];
+      `).all(s.id) as {
+        ingredient_id: string;
+        quantity_used_in_step: number | null;
+        unit: string | null;
+        component: string | null;
+        notes: string | null;
+      }[];
+
+      const ingredient_refs = refRows.map((ref) => ref.ingredient_id);
+
+      // Condition 2: Distinguish between absent and empty list.
+      // If any allocation details are present, populate allocations; otherwise leave undefined (never force to []).
+      const hasAllocations = refRows.some(
+        (r) => r.quantity_used_in_step !== null || r.component !== null || r.notes !== null
+      );
+
+      const allocations: StepIngredientAllocation[] | undefined = hasAllocations
+        ? refRows.map((r) => ({
+            ingredient_id: r.ingredient_id,
+            quantity_used_in_step: r.quantity_used_in_step,
+            unit: r.unit,
+            component: r.component,
+            notes: r.notes,
+          }))
+        : undefined;
+
+      // Condition 2: depends_on_json: NULL maps to undefined (implicit sequential). '[]' maps to [].
+      let depends_on: string[] | null | undefined = undefined;
+      if (s.depends_on_json !== null && s.depends_on_json !== undefined) {
+        try {
+          depends_on = JSON.parse(s.depends_on_json);
+        } catch {
+          depends_on = undefined;
+        }
+      }
+
+      // Thermal constraints: NULL maps to undefined.
+      let thermal_constraints = undefined;
+      if (s.thermal_constraints_json !== null && s.thermal_constraints_json !== undefined) {
+        try {
+          thermal_constraints = JSON.parse(s.thermal_constraints_json);
+        } catch {
+          thermal_constraints = undefined;
+        }
+      }
+
+      // Risks: NULL maps to undefined.
+      let risks = undefined;
+      if (s.risks_json !== null && s.risks_json !== undefined) {
+        try {
+          risks = JSON.parse(s.risks_json);
+        } catch {
+          risks = undefined;
+        }
+      }
 
       return {
         id: s.id,
+        step_id: s.step_id || undefined,
         step_number: s.step_number,
         instruction: s.instruction,
         duration_minutes: s.duration_minutes,
+        active_minutes: typeof s.active_minutes === 'number' ? s.active_minutes : undefined,
+        passive_minutes: typeof s.passive_minutes === 'number' ? s.passive_minutes : undefined,
+        depends_on,
         temperature_c: s.temperature_c,
         heat_level: s.heat_level,
         success_cue: s.success_cue,
-        ingredient_refs: refs.map((ref) => ref.ingredient_id),
+        ingredient_refs,
+        allocations,
+        thermal_constraints,
+        risks,
       };
     });
 
-    const safeJsonParse = (str: string, fallback: any = []) => {
+    const safeJsonParse = (str: string | null | undefined) => {
+      if (!str) return undefined;
       try {
-        return JSON.parse(str || '[]');
+        return JSON.parse(str);
       } catch {
-        return fallback;
+        return undefined;
       }
     };
 
@@ -121,12 +185,16 @@ export class RecipeRepository {
       timing: {
         active_minutes: recipeRow.active_minutes,
         total_minutes: recipeRow.total_minutes,
+        lead_time_hours: typeof recipeRow.lead_time_hours === 'number' ? recipeRow.lead_time_hours : undefined,
       },
       difficulty: recipeRow.difficulty,
-      equipment: safeJsonParse(recipeRow.equipment_json),
-      allergens: safeJsonParse(recipeRow.allergens_json),
-      sources: safeJsonParse(recipeRow.sources_json),
-      editorial_notes: safeJsonParse(recipeRow.editorial_notes_json),
+      equipment: safeJsonParse(recipeRow.equipment_json) || [],
+      allergens: safeJsonParse(recipeRow.allergens_json) || [],
+      sources: safeJsonParse(recipeRow.sources_json) || [],
+      editorial_notes: safeJsonParse(recipeRow.editorial_notes_json) || [],
+      claims: safeJsonParse(recipeRow.claims_json),
+      review: safeJsonParse(recipeRow.review_json),
+      nutrition_estimate: safeJsonParse(recipeRow.nutrition_json),
       ingredients,
       steps,
       created_at: recipeRow.created_at,
@@ -156,11 +224,15 @@ export class RecipeRepository {
             yield_approx_final_weight_g = ?,
             active_minutes = ?,
             total_minutes = ?,
+            lead_time_hours = ?,
             difficulty = ?,
             equipment_json = ?,
             allergens_json = ?,
             sources_json = ?,
             editorial_notes_json = ?,
+            claims_json = ?,
+            review_json = ?,
+            nutrition_json = ?,
             updated_at = ?
           WHERE id = ?
         `);
@@ -180,11 +252,15 @@ export class RecipeRepository {
           recipe.yield?.approx_final_weight_g ?? null,
           recipe.timing?.active_minutes ?? null,
           recipe.timing?.total_minutes ?? null,
+          recipe.timing?.lead_time_hours ?? null,
           recipe.difficulty || null,
           JSON.stringify(recipe.equipment || []),
           JSON.stringify(recipe.allergens || []),
           JSON.stringify(recipe.sources || []),
           JSON.stringify(recipe.editorial_notes || []),
+          recipe.claims !== undefined && recipe.claims !== null ? JSON.stringify(recipe.claims) : null,
+          recipe.review !== undefined && recipe.review !== null ? JSON.stringify(recipe.review) : null,
+          recipe.nutrition_estimate !== undefined && recipe.nutrition_estimate !== null ? JSON.stringify(recipe.nutrition_estimate) : null,
           now,
           recipe.id
         );
@@ -217,34 +293,69 @@ export class RecipeRepository {
           );
         });
 
-        // Insert new steps
+        // Insert new steps with persistent, stable step_id
         const insertStep = this.db.prepare(`
           INSERT INTO recipe_steps (
-            id, recipe_id, step_number, instruction, duration_minutes,
-            temperature_c, heat_level, success_cue
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            id, recipe_id, step_id, step_number, instruction, duration_minutes,
+            active_minutes, passive_minutes, depends_on_json, temperature_c,
+            heat_level, success_cue, thermal_constraints_json, risks_json
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         const insertRef = this.db.prepare(`
-          INSERT OR IGNORE INTO step_ingredient_refs (step_id, ingredient_id)
-          VALUES (?, ?)
+          INSERT OR REPLACE INTO step_ingredient_refs (
+            step_id, ingredient_id, quantity_used_in_step, unit, component, notes
+          ) VALUES (?, ?, ?, ?, ?, ?)
         `);
 
         (recipe.steps || []).forEach((step, idx) => {
-          const stepId = step.id || `step_${recipe.id}_${idx + 1}`;
+          const stepPk = step.id?.startsWith(`${recipe.id}_`) ? step.id : `${recipe.id}_${step.id || idx + 1}`;
+          // Preserve existing step_id, or assign stable default
+          const stableStepId = step.step_id && step.step_id.trim().length > 0 
+            ? step.step_id.trim() 
+            : `${recipe.recipe_id || recipe.id}_step_${step.step_number || idx + 1}`;
+
           insertStep.run(
-            stepId,
+            stepPk,
             recipe.id,
+            stableStepId,
             step.step_number || idx + 1,
             step.instruction,
             step.duration_minutes ?? null,
+            step.active_minutes ?? null,
+            step.passive_minutes ?? null,
+            step.depends_on !== undefined && step.depends_on !== null ? JSON.stringify(step.depends_on) : null,
             step.temperature_c ?? null,
             step.heat_level ?? null,
-            step.success_cue ?? null
+            step.success_cue ?? null,
+            step.thermal_constraints !== undefined && step.thermal_constraints !== null ? JSON.stringify(step.thermal_constraints) : null,
+            step.risks !== undefined && step.risks !== null ? JSON.stringify(step.risks) : null
           );
 
-          for (const ref of step.ingredient_refs || []) {
-            insertRef.run(stepId, ref);
+          // Build allocations lookup
+          const allocationMap = new Map<string, { quantity_used_in_step: number | null; unit: string | null; component: string | null; notes: string | null }>();
+          if (step.allocations && Array.isArray(step.allocations)) {
+            step.allocations.forEach((a) => {
+              allocationMap.set(a.ingredient_id, {
+                quantity_used_in_step: a.quantity_used_in_step ?? null,
+                unit: a.unit ?? null,
+                component: a.component ?? null,
+                notes: a.notes ?? null,
+              });
+            });
+          }
+
+          const allRefs = new Set([...(step.ingredient_refs || []), ...Array.from(allocationMap.keys())]);
+          for (const ref of allRefs) {
+            const alloc = allocationMap.get(ref);
+            insertRef.run(
+              stepPk,
+              ref,
+              alloc?.quantity_used_in_step ?? null,
+              alloc?.unit ?? null,
+              alloc?.component ?? null,
+              alloc?.notes ?? null
+            );
           }
         });
 

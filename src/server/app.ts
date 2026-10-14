@@ -1,14 +1,81 @@
 import express from 'express';
 import cors from 'cors';
+import crypto from 'node:crypto';
 import { RecipeRepository } from './repository.js';
 import { validateRecipe } from '../shared/validation.js';
 import { Recipe } from '../shared/types.js';
 
+function timingSafeKeyCompare(provided: string | null | undefined, expected: string | null | undefined): boolean {
+  if (!provided || !expected) return false;
+  const hashA = crypto.createHash('sha256').update(provided.trim()).digest();
+  const hashB = crypto.createHash('sha256').update(expected.trim()).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
+}
+
 export function createExpressApp(repo: RecipeRepository) {
   const app = express();
 
+  // Trust first proxy hop (essential for Railway edge router and X-Forwarded-For)
+  app.set('trust proxy', 1);
+
+  // Security Headers for Staging & Production
+  app.use((req, res, next) => {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    next();
+  });
+
   app.use(cors());
   app.use(express.json({ limit: '5mb' }));
+
+  // In-Memory Rate Limiting for Auth Endpoint (Protection against brute-force guessing)
+  interface RateLimitRecord {
+    count: number;
+    resetAt: number;
+  }
+  const authRateLimits = new Map<string, RateLimitRecord>();
+
+  const cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of authRateLimits.entries()) {
+      if (now > record.resetAt) {
+        authRateLimits.delete(ip);
+      }
+    }
+  }, 10 * 60 * 1000);
+  if (cleanupInterval.unref) cleanupInterval.unref();
+
+  const authRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (process.env.DISABLE_AUTH_RATE_LIMITER === 'true') return next();
+
+    const clientIp = (req.ip || req.socket.remoteAddress || 'unknown').toString();
+    const now = Date.now();
+    const windowMs = 15 * 60 * 1000; // 15 minutes window
+    const maxAttempts = 5; // max 5 verify attempts per 15 min per IP
+
+    let record = authRateLimits.get(clientIp);
+    if (!record || now > record.resetAt) {
+      record = { count: 1, resetAt: now + windowMs };
+      authRateLimits.set(clientIp, record);
+      return next();
+    }
+
+    if (record.count >= maxAttempts) {
+      const retryAfterSec = Math.ceil((record.resetAt - now) / 1000);
+      res.setHeader('Retry-After', retryAfterSec.toString());
+      return res.status(429).json({
+        valid: false,
+        error: `Prea multe încercări eșuate de autentificare. Vă rugăm să reîncercați peste ${Math.ceil(retryAfterSec / 60)} minute.`,
+        code: 'AUTH_RATE_LIMIT_EXCEEDED',
+      });
+    }
+
+    record.count++;
+    return next();
+  };
 
   // Health check
   app.get('/api/health', (req, res) => {
@@ -19,8 +86,155 @@ export function createExpressApp(repo: RecipeRepository) {
     });
   });
 
+  // Private Access & Shared Key Authentication
+  const getAccessKey = () => process.env.ATLAS_ACCESS_KEY;
+  const getEditorialKey = () =>
+    process.env.ATLAS_EDITORIAL_KEY || process.env.ATLAS_EDITORIAL_PASSKEY;
+
+  const extractAccessKey = (req: express.Request): string | null => {
+    const fromAccess = req.headers['x-atlas-access-key'];
+    if (typeof fromAccess === 'string' && fromAccess.trim().length > 0) {
+      return fromAccess.trim();
+    }
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.slice(7).trim();
+    }
+    // Query parameter is strictly disabled in production to prevent logging keys in proxy access logs or browser history
+    if (process.env.NODE_ENV !== 'production') {
+      const queryKey = req.query?.key;
+      if (typeof queryKey === 'string' && queryKey.trim().length > 0) {
+        return queryKey.trim();
+      }
+    }
+    return null;
+  };
+
+  const extractEditorialKey = (req: express.Request): string | null => {
+    const fromEditorial = req.headers['x-atlas-editorial-key'] || req.headers['x-atlas-passkey'];
+    if (typeof fromEditorial === 'string' && fromEditorial.trim().length > 0) {
+      return fromEditorial.trim();
+    }
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.slice(7).trim();
+    }
+    // Query parameter is strictly disabled in production
+    if (process.env.NODE_ENV !== 'production') {
+      const queryKey = req.query?.editorial_key || req.query?.key;
+      if (typeof queryKey === 'string' && queryKey.trim().length > 0) {
+        return queryKey.trim();
+      }
+    }
+    return null;
+  };
+
+  // Auth status endpoint (never exposes secrets or hashes)
+  app.get('/api/auth/status', (req, res) => {
+    const accessKey = getAccessKey();
+    const editorialKey = getEditorialKey();
+    const isProd = process.env.NODE_ENV === 'production';
+    const requireAuth = process.env.ATLAS_REQUIRE_AUTH === 'true';
+
+    const privateAccessRequired = Boolean(accessKey && accessKey.trim().length > 0);
+    const editorialAuthRequired = Boolean(editorialKey && editorialKey.trim().length > 0) || (isProd && requireAuth);
+
+    const providedAccess = extractAccessKey(req);
+    const providedEditorial = extractEditorialKey(req);
+
+    const readAuthenticated = !privateAccessRequired || Boolean(
+      (providedAccess && timingSafeKeyCompare(providedAccess, accessKey)) ||
+      (providedEditorial && (timingSafeKeyCompare(providedEditorial, accessKey) || (editorialKey && timingSafeKeyCompare(providedEditorial, editorialKey))))
+    );
+    const writeAuthenticated = Boolean(providedEditorial && editorialKey && timingSafeKeyCompare(providedEditorial, editorialKey));
+
+    res.json({
+      privateAccessRequired,
+      editorialAuthRequired,
+      readAuthenticated,
+      writeAuthenticated,
+      authRequired: privateAccessRequired || editorialAuthRequired,
+      authenticated: privateAccessRequired ? readAuthenticated : writeAuthenticated,
+    });
+  });
+
+  // Verify access key endpoint (rate-limited against brute-force)
+  app.post('/api/auth/verify', authRateLimiter, (req, res) => {
+    const { key } = req.body || {};
+    if (!key || typeof key !== 'string') {
+      return res.status(400).json({ valid: false, error: 'Cheia de acces este obligatorie.' });
+    }
+    const trimmed = key.trim();
+    const accessKey = getAccessKey();
+    const editorialKey = getEditorialKey();
+
+    const canRead = !accessKey || timingSafeKeyCompare(trimmed, accessKey) || (Boolean(editorialKey) && timingSafeKeyCompare(trimmed, editorialKey));
+    const canWrite = Boolean(editorialKey && timingSafeKeyCompare(trimmed, editorialKey));
+
+    if (!canRead && !canWrite) {
+      return res.status(401).json({ valid: false, error: 'Cheie de acces invalidă.' });
+    }
+
+    res.json({
+      valid: true,
+      canRead,
+      canWrite,
+    });
+  });
+
+  // Require Read Access (when private mode is configured)
+  const requireReadAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const accessKey = getAccessKey();
+    if (!accessKey || accessKey.trim().length === 0) {
+      return next();
+    }
+    const editorialKey = getEditorialKey();
+    const providedAccess = extractAccessKey(req);
+    const providedEditorial = extractEditorialKey(req);
+
+    const isMatch = (providedAccess && timingSafeKeyCompare(providedAccess, accessKey)) ||
+                    (providedEditorial && (timingSafeKeyCompare(providedEditorial, accessKey) || (editorialKey && timingSafeKeyCompare(providedEditorial, editorialKey))));
+
+    if (!isMatch) {
+      return res.status(401).json({
+        error: 'Acces privat. Cheie de acces validă necesară pentru consultarea rețetelor (fail-closed).',
+        code: 'APP_AUTH_REQUIRED',
+      });
+    }
+    return next();
+  };
+
+  // Require Editorial Write Auth (fails closed in production when credentials are missing or unconfigured)
+  const requireEditorialAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const isProd = process.env.NODE_ENV === 'production';
+    const editorialKey = getEditorialKey();
+    const requireAuth = process.env.ATLAS_REQUIRE_AUTH === 'true';
+
+    // FAIL CLOSED IN PRODUCTION:
+    // If credentials are required in production but none are configured on the server, fail closed:
+    if (isProd && requireAuth && (!editorialKey || editorialKey.trim().length === 0)) {
+      return res.status(403).json({
+        error: 'Operațiunile de scriere sunt dezactivate în producție: nicio cheie de acces redacțională nu este configurată pe server (fail-closed).',
+        code: 'CREDENTIALS_MISSING_SERVER',
+      });
+    }
+
+    if (editorialKey && editorialKey.trim().length > 0) {
+      const provided = extractEditorialKey(req);
+      if (!provided || !timingSafeKeyCompare(provided, editorialKey)) {
+        return res.status(401).json({
+          error: 'Acces neautorizat. Cheie redacțională obligatorie lipsă sau invalidă (fail-closed).',
+          code: 'EDITORIAL_AUTH_REQUIRED',
+        });
+      }
+      return next();
+    }
+
+    return next();
+  };
+
   // GET /api/recipes — List all recipes
-  app.get('/api/recipes', (req, res) => {
+  app.get('/api/recipes', requireReadAuth, (req, res) => {
     try {
       const recipes = repo.getAllRecipes();
       res.json(recipes);
@@ -30,9 +244,10 @@ export function createExpressApp(repo: RecipeRepository) {
   });
 
   // GET /api/recipes/:id — Get single recipe
-  app.get('/api/recipes/:id', (req, res) => {
+  app.get('/api/recipes/:id', requireReadAuth, (req, res) => {
     try {
-      const recipe = repo.getRecipeById(req.params.id);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const recipe = repo.getRecipeById(id);
       if (!recipe) {
         return res.status(404).json({ error: 'Rețeta nu a fost găsită' });
       }
@@ -54,7 +269,7 @@ export function createExpressApp(repo: RecipeRepository) {
   });
 
   // POST /api/recipes — Create or save recipe
-  app.post('/api/recipes', (req, res) => {
+  app.post('/api/recipes', requireEditorialAuth, (req, res) => {
     try {
       const recipeData: Recipe = req.body;
 
@@ -93,11 +308,12 @@ export function createExpressApp(repo: RecipeRepository) {
   });
 
   // PUT /api/recipes/:id — Update or save existing recipe
-  app.put('/api/recipes/:id', (req, res) => {
+  app.put('/api/recipes/:id', requireEditorialAuth, (req, res) => {
     try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const recipeData: Recipe = {
         ...req.body,
-        id: req.params.id,
+        id,
       };
 
       if (!recipeData.title) {
@@ -124,9 +340,10 @@ export function createExpressApp(repo: RecipeRepository) {
   });
 
   // DELETE /api/recipes/:id — Delete recipe
-  app.delete('/api/recipes/:id', (req, res) => {
+  app.delete('/api/recipes/:id', requireEditorialAuth, (req, res) => {
     try {
-      const deleted = repo.deleteRecipe(req.params.id);
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const deleted = repo.deleteRecipe(id);
       if (!deleted) {
         return res.status(404).json({ error: 'Rețeta nu a fost găsită' });
       }

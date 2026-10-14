@@ -158,6 +158,29 @@ export const GeneralInfo: React.FC<GeneralInfoProps> = ({ recipe, onChange }) =>
                   ...recipe.timing,
                   active_minutes: recipe.timing?.active_minutes ?? null,
                   total_minutes: e.target.value ? parseInt(e.target.value, 10) : null,
+                  lead_time_hours: recipe.timing?.lead_time_hours ?? null,
+                },
+              })
+            }
+          />
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Timp Maturare / Odihnă (Ore) [V2]</label>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            className="form-control"
+            placeholder="ex: 24 (pentru ragù, macerare sau odihnă peste noapte)"
+            value={recipe.timing?.lead_time_hours ?? ''}
+            onChange={(e) =>
+              onChange({
+                timing: {
+                  ...recipe.timing,
+                  active_minutes: recipe.timing?.active_minutes ?? null,
+                  total_minutes: recipe.timing?.total_minutes ?? null,
+                  lead_time_hours: e.target.value === '' ? null : parseFloat(e.target.value),
                 },
               })
             }

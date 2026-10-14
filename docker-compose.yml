@@ -1,0 +1,23 @@
+services:
+  atlas-gastronomic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: atlas_gastronomic_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_PATH=/app/data/atlas_gastronomic.db
+      # Shared Access Keys (private reading & editorial writing)
+      - ATLAS_ACCESS_KEY=${ATLAS_ACCESS_KEY:-}
+      - ATLAS_EDITORIAL_KEY=${ATLAS_EDITORIAL_KEY:-}
+      - ATLAS_REQUIRE_AUTH=${ATLAS_REQUIRE_AUTH:-false}
+    volumes:
+      - atlas_data:/app/data
+
+volumes:
+  atlas_data:
+    name: atlas_gastronomic_data
