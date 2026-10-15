@@ -1,5 +1,6 @@
 import { Recipe, RecipeValidationResult } from '../../shared/types.js';
 import { RecipeListItem } from '../../server/repository.js';
+import { RecipeEditorialProfile } from '../../shared/editorial-types.js';
 
 const API_BASE = '/api';
 const ACCESS_KEY_STORAGE_KEY = 'atlas_access_key';
@@ -160,5 +161,49 @@ export async function validateRecipeApi(recipe: Partial<Recipe>): Promise<Recipe
   if (!res.ok) {
     throw new Error('Eroare la validarea rețetei.');
   }
+  return res.json();
+}
+
+export async function fetchEditorialProfilesApi(): Promise<Record<string, RecipeEditorialProfile>> {
+  const res = await fetch(`${API_BASE}/editorial`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Eroare la încărcarea profilurilor editoriale.');
+  }
+  return res.json();
+}
+
+export async function fetchRecipeEditorialApi(id: string): Promise<RecipeEditorialProfile> {
+  const res = await fetch(`${API_BASE}/recipes/${id}/editorial`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Eroare la obținerea profilului editorial.');
+  }
+  return res.json();
+}
+
+export async function saveRecipeEditorialApi(
+  id: string,
+  editorial: Partial<RecipeEditorialProfile>,
+  rationale?: string
+): Promise<{ editorial: RecipeEditorialProfile; auditRecord: any; previousStatus: string }> {
+  const res = await fetch(`${API_BASE}/recipes/${id}/editorial`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ editorial, rationale }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || 'Eroare la salvarea profilului editorial.');
+  }
+
   return res.json();
 }

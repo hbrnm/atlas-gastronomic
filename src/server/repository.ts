@@ -1,6 +1,15 @@
 import { DatabaseSync } from 'node:sqlite';
 import { Recipe, RecipeIngredient, RecipeStep, StepIngredientAllocation } from '../shared/types.js';
+import { RecipeEditorialProfile, RecipeEditorialAuditRecord, EditorialStatus, ActorRole } from '../shared/editorial-types.js';
+import { detectMaterialChanges, validateEditorialProfile } from '../shared/editorial-validation.js';
 import { insertRecipeIntoDb } from './db.js';
+
+export interface AuthenticatedActor {
+  actor_id: string;
+  actor_role: ActorRole;
+  is_human: boolean;
+  display_name: string;
+}
 
 export interface RecipeListItem {
   id: string;
@@ -19,6 +28,9 @@ export interface RecipeListItem {
   difficulty: string | null;
   ingredients_count: number;
   steps_count: number;
+  image_url?: string | null;
+  editorial_subtitle?: string | null;
+  editorial_status?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -33,9 +45,11 @@ export class RecipeRepository {
         r.culinary_tradition, r.region, r.category, r.status,
         r.yield_quantity, r.yield_unit, r.total_minutes, r.lead_time_hours, r.difficulty,
         r.created_at, r.updated_at,
+        e.image_url, e.editorial_subtitle, e.editorial_status,
         (SELECT COUNT(*) FROM recipe_ingredients i WHERE i.recipe_id = r.id) as ingredients_count,
         (SELECT COUNT(*) FROM recipe_steps s WHERE s.recipe_id = r.id) as steps_count
       FROM recipes r
+      LEFT JOIN recipe_editorial e ON e.recipe_id = r.id
       ORDER BY r.updated_at DESC
     `);
 
@@ -197,6 +211,7 @@ export class RecipeRepository {
       nutrition_estimate: safeJsonParse(recipeRow.nutrition_json),
       ingredients,
       steps,
+      editorial: this.getEditorialByRecipeId(recipeRow.id),
       created_at: recipeRow.created_at,
       updated_at: recipeRow.updated_at,
     };
@@ -375,5 +390,275 @@ export class RecipeRepository {
   deleteRecipe(id: string): boolean {
     const res = this.db.prepare('DELETE FROM recipes WHERE id = ?').run(id);
     return res.changes > 0;
+  }
+
+  getEditorialByRecipeId(id: string): RecipeEditorialProfile | null {
+    const row = this.db.prepare(`
+      SELECT e.*, r.id as canonical_recipe_id
+      FROM recipe_editorial e
+      JOIN recipes r ON r.id = e.recipe_id
+      WHERE e.recipe_id = ? OR r.recipe_id = ?
+    `).get(id, id) as any;
+
+    if (!row) return null;
+
+    const safeJsonParse = (str: string | null | undefined) => {
+      if (!str) return [];
+      try {
+        return JSON.parse(str);
+      } catch {
+        return [];
+      }
+    };
+
+    return {
+      recipe_id: row.canonical_recipe_id || row.recipe_id,
+      profile_version: row.profile_version || 1,
+      editorial_status: row.editorial_status || 'draft',
+      editorial_subtitle: row.editorial_subtitle || null,
+      heritage: row.heritage || null,
+      region_context: row.region_context || null,
+      terroir: row.terroir || null,
+      chef_quote: row.chef_quote || null,
+      chef_tip: row.chef_tip || null,
+      pairing_suggestion: row.pairing_suggestion || null,
+      historical_sources: safeJsonParse(row.historical_sources_json),
+      claim_confidence: row.claim_confidence || 'uncertain',
+      image_url: row.image_url || null,
+      image_alt: row.image_alt || null,
+      image_caption: row.image_caption || null,
+      image_source_url: row.image_source_url || null,
+      image_author: row.image_author || null,
+      image_license: row.image_license || null,
+      image_license_notes: row.image_license_notes || null,
+      image_attribution: row.image_attribution || null,
+      image_rights_status: row.image_rights_status || 'unverified',
+      approved_by: row.approved_by || null,
+      approved_at: row.approved_at || null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    };
+  }
+
+  getAllEditorialProfiles(): Record<string, RecipeEditorialProfile> {
+    const rows = this.db.prepare('SELECT * FROM recipe_editorial').all() as any[];
+    const result: Record<string, RecipeEditorialProfile> = {};
+    for (const r of rows) {
+      const profile = this.getEditorialByRecipeId(r.recipe_id);
+      if (profile) {
+        result[profile.recipe_id] = profile;
+      }
+    }
+    return result;
+  }
+
+  saveEditorial(
+    recipeId: string,
+    profileData: Partial<RecipeEditorialProfile>,
+    actor: AuthenticatedActor,
+    rationale = 'Actualizare profil editorial'
+  ): { editorial: RecipeEditorialProfile; auditRecord: RecipeEditorialAuditRecord; previousStatus: EditorialStatus } {
+    const recipeRow = this.db.prepare('SELECT id, recipe_id as slug, title FROM recipes WHERE id = ? OR recipe_id = ?').get(recipeId, recipeId) as any;
+    if (!recipeRow) {
+      throw new Error(`Rețeta cu identificatorul '${recipeId}' nu a fost găsită.`);
+    }
+
+    const canonicalId = recipeRow.id;
+    const existing = this.getEditorialByRecipeId(canonicalId);
+    const previousStatus: EditorialStatus = existing?.editorial_status || 'draft';
+    let targetStatus: EditorialStatus = profileData.editorial_status || previousStatus;
+
+    let profileVersion = existing?.profile_version || 1;
+    let approvedBy = existing?.approved_by || null;
+    let approvedAt = existing?.approved_at || null;
+
+    // Detect material changes
+    const materialChanges = existing ? detectMaterialChanges(existing, profileData) : [];
+
+    // APPROVAL INVALIDATION RULE:
+    // If already approved and material edits occurred, automatically invalidate approval!
+    if (previousStatus === 'approved' && materialChanges.length > 0 && targetStatus === 'approved') {
+      targetStatus = 'in_review';
+      approvedBy = null;
+      approvedAt = null;
+      profileVersion += 1;
+      rationale = `${rationale} (Aprobare invalidată automat din cauza modificării câmpurilor: ${materialChanges.join(', ')})`;
+    } else if (materialChanges.length > 0) {
+      profileVersion += 1;
+    }
+
+    // HUMAN APPROVER IDENTITY ENFORCEMENT:
+    // Only an explicitly authorized human approver can transition status to 'approved'.
+    if (targetStatus === 'approved') {
+      if (actor.actor_role !== 'approver' || !actor.is_human) {
+        throw new Error('FORBIDDEN: Aprobarea editorială necesită credențiale verificate de aprobator uman (Automated agents cannot approve).');
+      }
+      const rightsStatus = profileData.image_rights_status || existing?.image_rights_status;
+      if (rightsStatus !== 'verified') {
+        throw new Error('VALIDATION_ERROR: Profilul nu poate fi aprobat fără verificarea drepturilor de imagine (image_rights_status = verified).');
+      }
+      approvedBy = actor.actor_id; // Server-resolved human identity! Discard any client-forged value!
+      approvedAt = new Date().toISOString();
+    } else if (previousStatus === 'approved') {
+      approvedBy = null;
+      approvedAt = null;
+    }
+
+    // Run deterministic validation
+    const valResult = validateEditorialProfile({ ...existing, ...profileData, recipe_id: canonicalId }, targetStatus);
+    if (!valResult.isValid) {
+      throw new Error(`VALIDATION_ERROR: ${valResult.errors.map((e) => e.message).join(' | ')}`);
+    }
+
+    const now = new Date().toISOString();
+    const auditId = `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    this.db.exec('BEGIN TRANSACTION;');
+    try {
+      const upsert = this.db.prepare(`
+        INSERT INTO recipe_editorial (
+          recipe_id, profile_version, editorial_status, editorial_subtitle, heritage,
+          region_context, terroir, chef_quote, chef_tip, pairing_suggestion,
+          historical_sources_json, claim_confidence, image_url, image_alt, image_caption,
+          image_source_url, image_author, image_license, image_license_notes, image_attribution,
+          image_rights_status, approved_by, approved_at, created_at, updated_at
+        ) VALUES (
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?
+        )
+        ON CONFLICT(recipe_id) DO UPDATE SET
+          profile_version = excluded.profile_version,
+          editorial_status = excluded.editorial_status,
+          editorial_subtitle = excluded.editorial_subtitle,
+          heritage = excluded.heritage,
+          region_context = excluded.region_context,
+          terroir = excluded.terroir,
+          chef_quote = excluded.chef_quote,
+          chef_tip = excluded.chef_tip,
+          pairing_suggestion = excluded.pairing_suggestion,
+          historical_sources_json = excluded.historical_sources_json,
+          claim_confidence = excluded.claim_confidence,
+          image_url = excluded.image_url,
+          image_alt = excluded.image_alt,
+          image_caption = excluded.image_caption,
+          image_source_url = excluded.image_source_url,
+          image_author = excluded.image_author,
+          image_license = excluded.image_license,
+          image_license_notes = excluded.image_license_notes,
+          image_attribution = excluded.image_attribution,
+          image_rights_status = excluded.image_rights_status,
+          approved_by = excluded.approved_by,
+          approved_at = excluded.approved_at,
+          updated_at = excluded.updated_at
+      `);
+
+      upsert.run(
+        canonicalId,
+        profileVersion,
+        targetStatus,
+        profileData.editorial_subtitle ?? existing?.editorial_subtitle ?? null,
+        profileData.heritage ?? existing?.heritage ?? null,
+        profileData.region_context ?? existing?.region_context ?? null,
+        profileData.terroir ?? existing?.terroir ?? null,
+        profileData.chef_quote ?? existing?.chef_quote ?? null,
+        profileData.chef_tip ?? existing?.chef_tip ?? null,
+        profileData.pairing_suggestion ?? existing?.pairing_suggestion ?? null,
+        JSON.stringify(profileData.historical_sources ?? existing?.historical_sources ?? []),
+        profileData.claim_confidence ?? existing?.claim_confidence ?? 'documented',
+        profileData.image_url ?? existing?.image_url ?? null,
+        profileData.image_alt ?? existing?.image_alt ?? null,
+        profileData.image_caption ?? existing?.image_caption ?? null,
+        profileData.image_source_url ?? existing?.image_source_url ?? null,
+        profileData.image_author ?? existing?.image_author ?? null,
+        profileData.image_license ?? existing?.image_license ?? null,
+        profileData.image_license_notes ?? existing?.image_license_notes ?? null,
+        profileData.image_attribution ?? existing?.image_attribution ?? null,
+        profileData.image_rights_status ?? existing?.image_rights_status ?? 'unverified',
+        approvedBy,
+        approvedAt,
+        existing?.created_at || now,
+        now
+      );
+
+      // Append immutable audit log row within the SAME atomic transaction
+      const auditStmt = this.db.prepare(`
+        INSERT INTO recipe_editorial_audit (
+          id, recipe_id, recipe_slug, recipe_title, profile_version,
+          from_status, to_status, actor_id, actor_role, changed_fields_json,
+          rationale, created_at
+        ) VALUES (
+          ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?,
+          ?, ?
+        )
+      `);
+
+      const changedFields = materialChanges.length > 0 ? materialChanges : ['status_or_metadata'];
+      auditStmt.run(
+        auditId,
+        canonicalId,
+        recipeRow.slug,
+        recipeRow.title,
+        profileVersion,
+        previousStatus,
+        targetStatus,
+        actor.actor_id,
+        actor.actor_role,
+        JSON.stringify(changedFields),
+        rationale,
+        now
+      );
+
+      this.db.exec('COMMIT;');
+    } catch (err) {
+      this.db.exec('ROLLBACK;');
+      throw err;
+    }
+
+    const saved = this.getEditorialByRecipeId(canonicalId)!;
+    const auditRecord: RecipeEditorialAuditRecord = {
+      id: auditId,
+      recipe_id: canonicalId,
+      recipe_slug: recipeRow.slug,
+      recipe_title: recipeRow.title,
+      profile_version: profileVersion,
+      from_status: previousStatus,
+      to_status: targetStatus,
+      actor_id: actor.actor_id,
+      actor_role: actor.actor_role,
+      changed_fields: materialChanges,
+      rationale,
+      created_at: now,
+    };
+
+    return { editorial: saved, auditRecord, previousStatus };
+  }
+
+  saveRecipeWithEditorial(
+    recipe: Recipe,
+    editorialData: Partial<RecipeEditorialProfile> | undefined,
+    actor: AuthenticatedActor,
+    rationale = 'Actualizare sincronizată rețetă și profil editorial'
+  ): { recipe: Recipe; editorial: RecipeEditorialProfile | null } {
+    const savedRecipe = this.saveRecipe(recipe);
+
+    let savedEditorial: RecipeEditorialProfile | null = null;
+    if (editorialData) {
+      const res = this.saveEditorial(savedRecipe.id, editorialData, actor, rationale);
+      savedEditorial = res.editorial;
+    } else {
+      savedEditorial = this.getEditorialByRecipeId(savedRecipe.id);
+    }
+
+    return {
+      recipe: {
+        ...savedRecipe,
+        editorial: savedEditorial,
+      },
+      editorial: savedEditorial,
+    };
   }
 }

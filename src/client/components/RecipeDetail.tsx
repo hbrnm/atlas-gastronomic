@@ -113,8 +113,8 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     return groups;
   }, [recipe.ingredients]);
 
-  const editorial = getRecipeEditorial(recipe.id);
-  const heroImageSrc = editorial?.image || '/images/tagliatelle-ragu.jpg';
+  const editorial = getRecipeEditorial(recipe.id, recipe.editorial);
+  const heroImageSrc = recipe.editorial?.image_url || editorial?.image || '/images/tagliatelle-ragu.jpg';
 
   const getDifficultyLabel = (diff: string | null) => {
     if (diff === 'easy') return 'Ușor';

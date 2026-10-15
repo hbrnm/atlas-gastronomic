@@ -6,7 +6,9 @@ import { IngredientEditor } from './IngredientEditor.js';
 import { StepEditor } from './StepEditor.js';
 import { ValidationPanel } from './ValidationPanel.js';
 import { RecipePreview } from './RecipePreview.js';
-import { ArrowLeft, Save, Eye, Layers, ListOrdered, FileText, Check, AlertCircle, Trash2, ChefHat } from 'lucide-react';
+import { EditorialPanel } from './EditorialPanel.js';
+import { RecipeEditorialProfile } from '../../shared/editorial-types.js';
+import { ArrowLeft, Save, Eye, Layers, ListOrdered, FileText, Check, AlertCircle, Trash2, ChefHat, BookOpen } from 'lucide-react';
 
 interface RecipeEditorProps {
   initialRecipe: Recipe;
@@ -30,15 +32,18 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
   saveError,
 }) => {
   const [recipe, setRecipe] = useState<Recipe>(initialRecipe);
-  const [activeTab, setActiveTab] = useState<'info' | 'ingredients' | 'steps' | 'preview'>('info');
-  const [isDirty, setIsDirty] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'ingredients' | 'steps' | 'editorial' | 'preview'>('info');
+  const [isCoreDirty, setIsCoreDirty] = useState(false);
+  const [isEditorialDirty, setIsEditorialDirty] = useState(false);
+  const isDirty = isCoreDirty || isEditorialDirty;
   const [isDeleting, setIsDeleting] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
   // Sync if initialRecipe changes from outside
   useEffect(() => {
     setRecipe(initialRecipe);
-    setIsDirty(false);
+    setIsCoreDirty(false);
+    setIsEditorialDirty(false);
   }, [initialRecipe.id]);
 
   const validationResult: RecipeValidationResult = useMemo(() => {
@@ -51,13 +56,34 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
       ...patch,
       updated_at: new Date().toISOString(),
     }));
-    setIsDirty(true);
+    setIsCoreDirty(true);
+  };
+
+  const handleEditorialUpdate = (patch: Partial<RecipeEditorialProfile>) => {
+    setRecipe((prev) => ({
+      ...prev,
+      editorial: {
+        ...(prev.editorial || {
+          recipe_id: prev.id,
+          profile_version: 1,
+          editorial_status: 'draft',
+          image_rights_status: 'unverified',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }),
+        ...patch,
+        updated_at: new Date().toISOString(),
+      },
+      updated_at: new Date().toISOString(),
+    }));
+    setIsEditorialDirty(true);
   };
 
   const handleSaveClick = async () => {
     try {
       await onSave(recipe);
-      setIsDirty(false);
+      setIsCoreDirty(false);
+      setIsEditorialDirty(false);
       setLastSavedTime(new Date().toLocaleTimeString('ro-RO'));
     } catch (err) {
       // error handled by parent
@@ -227,6 +253,15 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
           <Eye size={16} />
           4. Validare & Previzualizare
         </button>
+
+        <button
+          type="button"
+          className={`tab-btn ${activeTab === 'editorial' ? 'active' : ''}`}
+          onClick={() => setActiveTab('editorial')}
+        >
+          <BookOpen size={16} />
+          5. Profil Editorial & Proveniență
+        </button>
       </div>
 
       {/* Tab Panels */}
@@ -246,6 +281,14 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
           steps={recipe.steps || []}
           ingredients={recipe.ingredients || []}
           onChange={(steps) => handleUpdate({ steps })}
+        />
+      )}
+
+      {activeTab === 'editorial' && (
+        <EditorialPanel
+          editorial={recipe.editorial || undefined}
+          onChange={handleEditorialUpdate}
+          recipeTitle={recipe.title}
         />
       )}
 

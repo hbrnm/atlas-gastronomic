@@ -225,8 +225,17 @@ export const RecipeList: React.FC<RecipeListProps> = ({
 
           <div className="curated-grid">
             {curatedRecipes.map((r) => {
-              const editorial = getRecipeEditorial(r.id);
-              const imageSrc = editorial?.image || '/images/tagliatelle-ragu.jpg';
+              const editorial = getRecipeEditorial(r.id, r.image_url ? {
+                recipe_id: r.id,
+                profile_version: 1,
+                editorial_status: (r.editorial_status as any) || 'draft',
+                image_url: r.image_url,
+                editorial_subtitle: r.editorial_subtitle,
+                image_rights_status: 'unverified',
+                created_at: '',
+                updated_at: '',
+              } : null);
+              const imageSrc = r.image_url || editorial?.image || '/images/tagliatelle-ragu.jpg';
               const tradition = r.culinary_tradition || 'Tradiție Europeană';
               const timeText = r.total_minutes
                 ? `${Math.floor(r.total_minutes / 60) > 0 ? `${Math.floor(r.total_minutes / 60)}h ` : ''}${r.total_minutes % 60 ? `${r.total_minutes % 60}min` : ''}`.trim()
@@ -503,8 +512,17 @@ export const RecipeList: React.FC<RecipeListProps> = ({
       ) : (
         <div className="recipe-grid">
           {filteredRecipes.map((r) => {
-            const editorial = getRecipeEditorial(r.id);
-            const imageSrc = editorial?.image || '/images/tagliatelle-ragu.jpg';
+            const editorial = getRecipeEditorial(r.id, r.image_url ? {
+              recipe_id: r.id,
+              profile_version: 1,
+              editorial_status: (r.editorial_status as any) || 'draft',
+              image_url: r.image_url,
+              editorial_subtitle: r.editorial_subtitle,
+              image_rights_status: 'unverified',
+              created_at: '',
+              updated_at: '',
+            } : null);
+            const imageSrc = r.image_url || editorial?.image || '/images/tagliatelle-ragu.jpg';
 
             const handleCardClick = () => {
               if (appMode === 'cooking' && onOpenDetail) {

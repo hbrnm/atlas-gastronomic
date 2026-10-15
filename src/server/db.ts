@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SEED_RECIPES, COMPLETE_CATALOGUE } from '../shared/sample-data.js';
 import { Recipe } from '../shared/types.js';
+import { CANONICAL_EDITORIAL_SEEDS } from './editorial-seeds.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -163,6 +164,136 @@ export function createV2RollbackBackup(db: DatabaseSync): void {
   }
 }
 
+/**
+ * Phase 009: Editorial Presentation, Provenance & Immutable Audit Trail Migration.
+ * Creates recipe_editorial and recipe_editorial_audit tables with database triggers.
+ */
+export function applyEditorialMigration(db: DatabaseSync): void {
+  db.exec('BEGIN TRANSACTION;');
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS recipe_editorial (
+        recipe_id TEXT PRIMARY KEY REFERENCES recipes(id) ON DELETE CASCADE,
+        profile_version INTEGER NOT NULL DEFAULT 1,
+        editorial_status TEXT NOT NULL DEFAULT 'draft' CHECK (editorial_status IN ('draft', 'in_review', 'needs_revision', 'approved')),
+        editorial_subtitle TEXT,
+        heritage TEXT,
+        region_context TEXT,
+        terroir TEXT,
+        chef_quote TEXT,
+        chef_tip TEXT,
+        pairing_suggestion TEXT,
+        historical_sources_json TEXT DEFAULT '[]',
+        claim_confidence TEXT DEFAULT 'uncertain' CHECK (claim_confidence IN ('documented', 'widely_attested', 'editorial_interpretation', 'uncertain')),
+        image_url TEXT,
+        image_alt TEXT,
+        image_caption TEXT,
+        image_source_url TEXT,
+        image_author TEXT,
+        image_license TEXT CHECK (image_license IS NULL OR image_license IN (
+          'CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'Public-Domain-Mark', 
+          'Unsplash-License', 'Proprietary-Atlas', 'Custom-Documented'
+        )),
+        image_license_notes TEXT,
+        image_attribution TEXT,
+        image_rights_status TEXT NOT NULL DEFAULT 'unverified' CHECK (image_rights_status IN ('unverified', 'verification_pending', 'verified', 'restricted')),
+        approved_by TEXT,
+        approved_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS recipe_editorial_audit (
+        id TEXT PRIMARY KEY,
+        recipe_id TEXT NOT NULL,
+        recipe_slug TEXT NOT NULL,
+        recipe_title TEXT NOT NULL,
+        profile_version INTEGER NOT NULL,
+        from_status TEXT,
+        to_status TEXT NOT NULL CHECK (to_status IN ('draft', 'in_review', 'needs_revision', 'approved')),
+        actor_id TEXT NOT NULL,
+        actor_role TEXT NOT NULL CHECK (actor_role IN ('editor', 'reviewer', 'approver', 'system')),
+        changed_fields_json TEXT NOT NULL DEFAULT '[]',
+        rationale TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_recipe_editorial_status ON recipe_editorial(editorial_status);
+      CREATE INDEX IF NOT EXISTS idx_recipe_editorial_audit_recipe ON recipe_editorial_audit(recipe_id, created_at DESC);
+
+      CREATE TRIGGER IF NOT EXISTS prevent_editorial_audit_update
+      BEFORE UPDATE ON recipe_editorial_audit
+      BEGIN
+        SELECT RAISE(ABORT, 'Audit trail records are immutable and cannot be updated.');
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS prevent_editorial_audit_delete
+      BEFORE DELETE ON recipe_editorial_audit
+      BEGIN
+        SELECT RAISE(ABORT, 'Audit trail records are permanent and cannot be deleted.');
+      END;
+    `);
+    db.exec('COMMIT;');
+  } catch (err) {
+    db.exec('ROLLBACK;');
+    throw err;
+  }
+}
+
+export function seedEditorialProfiles(db: DatabaseSync): void {
+  const insertStmt = db.prepare(`
+    INSERT INTO recipe_editorial (
+      recipe_id, profile_version, editorial_status, editorial_subtitle, heritage,
+      region_context, terroir, chef_quote, chef_tip, pairing_suggestion,
+      historical_sources_json, claim_confidence, image_url, image_alt, image_caption,
+      image_source_url, image_author, image_license, image_license_notes, image_attribution,
+      image_rights_status, approved_by, approved_at, created_at, updated_at
+    ) VALUES (
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?
+    )
+    ON CONFLICT(recipe_id) DO NOTHING;
+  `);
+
+  const checkRecipeStmt = db.prepare('SELECT id FROM recipes WHERE id = ?');
+
+  for (const s of CANONICAL_EDITORIAL_SEEDS) {
+    const exists = checkRecipeStmt.get(s.recipe_id);
+    if (!exists) continue;
+
+    insertStmt.run(
+      s.recipe_id,
+      s.profile_version || 1,
+      s.editorial_status || 'draft',
+      s.editorial_subtitle || null,
+      s.heritage || null,
+      s.region_context || null,
+      s.terroir || null,
+      s.chef_quote || null,
+      s.chef_tip || null,
+      s.pairing_suggestion || null,
+      JSON.stringify(s.historical_sources || []),
+      s.claim_confidence || 'documented',
+      s.image_url || null,
+      s.image_alt || null,
+      s.image_caption || null,
+      s.image_source_url || null,
+      s.image_author || null,
+      s.image_license || null,
+      s.image_license_notes || null,
+      s.image_attribution || null,
+      s.image_rights_status || 'unverified',
+      s.approved_by || null,
+      s.approved_at || null,
+      s.created_at || new Date().toISOString(),
+      s.updated_at || new Date().toISOString()
+    );
+  }
+}
+
 export function initDatabase(dbPath?: string, seedRecipes?: Recipe[]): DatabaseSync {
   const targetPath = dbPath || getDatabasePath();
   if (targetPath !== ':memory:') {
@@ -254,6 +385,9 @@ export function initDatabase(dbPath?: string, seedRecipes?: Recipe[]): DatabaseS
   // Run additive V2 migration (idempotent)
   applyV2Migration(db);
 
+  // Run additive Phase 009 Editorial migration (idempotent)
+  applyEditorialMigration(db);
+
   // Seeding strategy:
   // Isolate test fixtures where appropriate (PO Mandate Phase 003 Milestone 003-A)
   const isBrowserTestFixture = targetPath && targetPath.includes('browser_test');
@@ -278,9 +412,12 @@ export function initDatabase(dbPath?: string, seedRecipes?: Recipe[]): DatabaseS
     if (countRow.count === 0) {
       seedDatabase(db);
     }
-    // Synchronize all 4 canonical recipes into the product database
+    // Synchronize all 12 canonical recipes into the product database
     syncCanonicalRecipes(db);
   }
+
+  // Seed editorial profiles for any canonical recipes present in the database
+  seedEditorialProfiles(db);
 
   return db;
 }

@@ -1,9 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import crypto from 'node:crypto';
-import { RecipeRepository } from './repository.js';
+import { RecipeRepository, AuthenticatedActor } from './repository.js';
 import { validateRecipe } from '../shared/validation.js';
 import { Recipe } from '../shared/types.js';
+import { RecipeEditorialProfile } from '../shared/editorial-types.js';
 
 function timingSafeKeyCompare(provided: string | null | undefined, expected: string | null | undefined): boolean {
   if (!provided || !expected) return false;
@@ -90,6 +91,8 @@ export function createExpressApp(repo: RecipeRepository) {
   const getAccessKey = () => process.env.ATLAS_ACCESS_KEY;
   const getEditorialKey = () =>
     process.env.ATLAS_EDITORIAL_KEY || process.env.ATLAS_EDITORIAL_PASSKEY;
+  const getReviewerKey = () => process.env.ATLAS_REVIEWER_KEY;
+  const getApproverKey = () => process.env.ATLAS_APPROVER_KEY;
 
   const extractAccessKey = (req: express.Request): string | null => {
     const fromAccess = req.headers['x-atlas-access-key'];
@@ -127,6 +130,124 @@ export function createExpressApp(repo: RecipeRepository) {
       }
     }
     return null;
+  };
+
+  const extractReviewerKey = (req: express.Request): string | null => {
+    const fromHeader = req.headers['x-atlas-reviewer-key'];
+    if (typeof fromHeader === 'string' && fromHeader.trim().length > 0) {
+      return fromHeader.trim();
+    }
+    return null;
+  };
+
+  const extractApproverKey = (req: express.Request): string | null => {
+    const fromHeader = req.headers['x-atlas-approver-key'];
+    if (typeof fromHeader === 'string' && fromHeader.trim().length > 0) {
+      return fromHeader.trim();
+    }
+    return null;
+  };
+
+  const resolveActor = (req: express.Request): AuthenticatedActor => {
+    const approverKey = getApproverKey();
+    const reviewerKey = getReviewerKey();
+    const editorialKey = getEditorialKey();
+
+    const providedApprover = extractApproverKey(req);
+    const providedReviewer = extractReviewerKey(req);
+    const providedEditorial = extractEditorialKey(req);
+
+    const clientName = typeof req.headers['x-atlas-actor-name'] === 'string'
+      ? (req.headers['x-atlas-actor-name'] as string).trim()
+      : null;
+    const isAgent = req.headers['x-atlas-agent-client'] === 'true';
+
+    // 1. Approver Role (Highest authorization)
+    if (approverKey && providedApprover && timingSafeKeyCompare(providedApprover, approverKey)) {
+      if (isAgent) {
+        return {
+          actor_id: 'agent_attempted_approver',
+          actor_role: 'system',
+          is_human: false,
+          display_name: 'Atlas Automated Agent (Impersonation Rejected)',
+        };
+      }
+      const name = clientName || 'Redactor-Șef Aprobator';
+      return {
+        actor_id: 'usr_approver_' + crypto.createHash('sha256').update(name).digest('hex').substring(0, 8),
+        actor_role: 'approver',
+        is_human: true,
+        display_name: name,
+      };
+    }
+
+    // 2. Reviewer Role
+    if (reviewerKey && providedReviewer && timingSafeKeyCompare(providedReviewer, reviewerKey)) {
+      const name = clientName || 'Recenzent Editorial';
+      return {
+        actor_id: 'usr_reviewer_' + crypto.createHash('sha256').update(name).digest('hex').substring(0, 8),
+        actor_role: 'reviewer',
+        is_human: !isAgent,
+        display_name: isAgent ? 'Atlas AI Reviewer' : name,
+      };
+    }
+
+    // 3. Editor Role (from editorial key)
+    if (editorialKey && providedEditorial && timingSafeKeyCompare(providedEditorial, editorialKey)) {
+      if (isAgent) {
+        return {
+          actor_id: 'agent_antigravity',
+          actor_role: 'editor',
+          is_human: false,
+          display_name: 'Atlas Automated Agent',
+        };
+      }
+      const name = clientName || 'Redactor Gastronomic';
+      return {
+        actor_id: 'usr_editor_' + crypto.createHash('sha256').update(name).digest('hex').substring(0, 8),
+        actor_role: 'editor',
+        is_human: true,
+        display_name: name,
+      };
+    }
+
+    // 4. In development / test environment:
+    if (process.env.NODE_ENV !== 'production') {
+      const testRole = req.headers['x-atlas-test-role'] as string;
+      const testIsHuman = req.headers['x-atlas-test-human'] !== 'false';
+      if (testRole === 'approver') {
+        return {
+          actor_id: (req.headers['x-atlas-test-actor-id'] as string) || 'usr_dev_approver',
+          actor_role: 'approver',
+          is_human: testIsHuman,
+          display_name: clientName || 'Dev Approver',
+        };
+      }
+      if (testRole === 'reviewer') {
+        return {
+          actor_id: 'usr_dev_reviewer',
+          actor_role: 'reviewer',
+          is_human: testIsHuman,
+          display_name: clientName || 'Dev Reviewer',
+        };
+      }
+      if (!editorialKey || editorialKey.trim().length === 0) {
+        return {
+          actor_id: (req.headers['x-atlas-test-actor-id'] as string) || 'usr_dev_editor',
+          actor_role: 'editor',
+          is_human: testIsHuman,
+          display_name: clientName || 'Dev Editor',
+        };
+      }
+    }
+
+    // Fallback default editor
+    return {
+      actor_id: 'usr_anonymous_editor',
+      actor_role: 'editor',
+      is_human: true,
+      display_name: clientName || 'Editor Anonim',
+    };
   };
 
   // Auth status endpoint (never exposes secrets or hashes)
@@ -307,12 +428,13 @@ export function createExpressApp(repo: RecipeRepository) {
     }
   });
 
-  // PUT /api/recipes/:id — Update or save existing recipe
+  // PUT /api/recipes/:id — Update or save existing recipe (with optional editorial sync)
   app.put('/api/recipes/:id', requireEditorialAuth, (req, res) => {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const { editorial: editorialData, ...recipeBody } = req.body || {};
       const recipeData: Recipe = {
-        ...req.body,
+        ...recipeBody,
         id,
       };
 
@@ -331,11 +453,70 @@ export function createExpressApp(repo: RecipeRepository) {
       }
 
       const validation = validateRecipe(recipeData);
-      const saved = repo.saveRecipe(recipeData);
+      const actor = resolveActor(req);
+      const rationale = (req.body?.rationale as string) || 'Actualizare rețetă via Recipe Editor';
 
-      res.json({ recipe: saved, validation });
+      if (editorialData !== undefined) {
+        const result = repo.saveRecipeWithEditorial(recipeData, editorialData, actor, rationale);
+        return res.json({ recipe: result.recipe, validation, editorial: result.editorial });
+      }
+
+      const saved = repo.saveRecipe(recipeData);
+      const editorial = repo.getEditorialByRecipeId(saved.id);
+      res.json({ recipe: { ...saved, editorial }, validation, editorial });
     } catch (err: any) {
+      if (err.message?.startsWith('FORBIDDEN')) {
+        return res.status(403).json({ error: err.message });
+      }
+      if (err.message?.startsWith('VALIDATION_ERROR')) {
+        return res.status(400).json({ error: err.message });
+      }
       res.status(500).json({ error: 'Eroare la actualizarea rețetei', details: err.message });
+    }
+  });
+
+  // GET /api/editorial — Get all editorial profiles
+  app.get('/api/editorial', requireReadAuth, (req, res) => {
+    try {
+      const profiles = repo.getAllEditorialProfiles();
+      res.json(profiles);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Eroare la încărcarea profilurilor editoriale', details: err.message });
+    }
+  });
+
+  // GET /api/recipes/:id/editorial — Get single recipe editorial profile
+  app.get('/api/recipes/:id/editorial', requireReadAuth, (req, res) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const editorial = repo.getEditorialByRecipeId(id);
+      if (!editorial) {
+        return res.status(404).json({ error: 'Profilul editorial nu a fost găsit' });
+      }
+      res.json(editorial);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Eroare la obținerea profilului editorial', details: err.message });
+    }
+  });
+
+  // PUT /api/recipes/:id/editorial — Update single recipe editorial profile
+  app.put('/api/recipes/:id/editorial', requireEditorialAuth, (req, res) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const actor = resolveActor(req);
+      const rationale = req.body?.rationale || 'Actualizare profil editorial via panou dedicat';
+      const profileData = req.body?.editorial || req.body;
+
+      const result = repo.saveEditorial(id, profileData, actor, rationale);
+      res.json(result);
+    } catch (err: any) {
+      if (err.message?.startsWith('FORBIDDEN')) {
+        return res.status(403).json({ error: err.message });
+      }
+      if (err.message?.startsWith('VALIDATION_ERROR')) {
+        return res.status(400).json({ error: err.message });
+      }
+      res.status(500).json({ error: 'Eroare la actualizarea profilului editorial', details: err.message });
     }
   });
 

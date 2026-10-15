@@ -48,8 +48,8 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
   const currentServings = servings && servings > 0 ? servings : baseYield;
   const scaleFactor = currentServings / baseYield;
 
-  const editorial = getRecipeEditorial(recipe.id);
-  const heroImageSrc = editorial?.image || '/images/tagliatelle-ragu.jpg';
+  const editorial = getRecipeEditorial(recipe.id, recipe.editorial);
+  const heroImageSrc = recipe.editorial?.image_url || editorial?.image || '/images/tagliatelle-ragu.jpg';
 
   const formatScaledQuantity = (qty: number | null | undefined): string => {
     if (qty === null || qty === undefined) return '';

@@ -145,6 +145,7 @@ export interface Recipe {
   claims?: RecipeClaim[];               // V2 / OD-03
   review?: RecipeReview;                // V2 / OD-03
   nutrition_estimate?: NutritionEstimate; // V2 / OD-03
+  editorial?: import('./editorial-types.js').RecipeEditorialProfile | null;
   created_at: string;
   updated_at: string;
 }
