@@ -1,29 +1,42 @@
 # Session State
 
 **Updated:** 2026-10-15  
-**Status:** PHASE 008.3 / STAGE 3 (Cook Mode Circular Timer & Atmosphere Alignment) COMPLETED, AUDITED & VERIFIED. Dark kitchen photographic atmosphere, circular radial SVG timer (gold `#D4AF37` accent, calculated strokeDashoffset, tabular numerals), pill-shaped ergonomic timer controls (`Pornește` / `Pauză`, reset, +1m), active & passive orientativ timing qualifications, and sensory cue / sfat callout cards implemented and verified. 100% clean typecheck (0 errors), production Vite build successful (1.33s), and all 53 local unit, integration, validation, and Cook Mode browser acceptance tests pass (`tests/user-cook-mode-acceptance.test.ts` passed 100%). Real Puppeteer screenshots captured at 1440px and 390px. Standards Pack v1.0.0 completely intact. No git commits or pushes performed.
+**Status:** PHASE 009 (Editorial Content Completion, Provenance Architecture, Audit Trails & Single Source of Truth) FULLY IMPLEMENTED, AUDITED & VERIFIED.
 
-## Active objective
-Phase 008.3: Product Owner Acceptance for Stage 3 (Cook Mode Circular Timer Alignment) and Phase 008.3 Overall Sign-Off.
+## Summary of Accomplishments in Phase 009
+1. **Canonical Asset Completion (P0):**
+   - Downloaded and verified all 7 missing authentic photographic assets into `src/client/public/images/`:
+     - `ciorba-radauteana.jpg` (341 KB)
+     - `coq-au-vin.jpg` (235 KB)
+     - `guacamole-mexicano.jpg` (458 KB)
+     - `ratatouille-nicoise.jpg` (223 KB)
+     - `salata-vinete.jpg` (501 KB)
+     - `shakshuka-maghreb.jpg` (667 KB)
+     - `tiramisu-trevisano.jpg` (415 KB)
+   - Created `docs/provenance/canonical-assets-provenance.md` documenting legal source, license, author, and `unverified` status for all 12 canonical dishes.
+2. **Schema & Engine-Level Security (SQLite):**
+   - Created `recipe_editorial` and `recipe_editorial_audit` in `src/server/db.ts`.
+   - Engine-level triggers `prevent_editorial_audit_update` and `prevent_editorial_audit_delete` abort any `UPDATE` or `DELETE` on audit rows.
+   - Non-cascading recipe deletion preserves audit history permanently with slug and title.
+   - Seeded all 12 canonical profiles in safe `draft` status, `image_rights_status: 'unverified'`, `approved_by: null`, `profile_version: 1`.
+3. **Repository & Server-Side Security:**
+   - Server-side resolution of actor identity from approver keys; anti-impersonation rejects automated bots attempting to approve.
+   - Legal rights invariant: approval is blocked if `image_rights_status !== 'verified'`.
+   - Automatic approval invalidation: material changes to approved profiles immediately drop status to `in_review`, clear approver credentials, increment `profile_version`, and record audit logs.
+   - Unified `GET /api/recipes/:id` attaches editorial profile; atomic `PUT /api/recipes/:id` synchronizes core and editorial payloads in one transaction.
+   - Dedicated `GET /api/editorial`, `GET /api/recipes/:id/editorial`, and `PUT /api/recipes/:id/editorial`.
+4. **Client UI & Consumer Integration:**
+   - Authored `src/client/components/EditorialPanel.tsx` with rich narrative inputs, canonical image selector, rights status dropdown, and live card preview.
+   - Integrated into `src/client/components/RecipeEditor.tsx` with dual dirty tracking (`isCoreDirty`, `isEditorialDirty`).
+   - Updated `RecipeList.tsx`, `RecipeDetail.tsx`, and `CookMode.tsx` to read image and editorial data dynamically from SQLite.
+5. **Quality Verification:**
+   - `npm run typecheck`: 0 errors.
+   - `npm run build`: Production Vite build succeeded (1.34s).
+   - 19/19 new Phase 009 tests passed (`tests/editorial-lifecycle.test.ts`, `tests/editorial-audit-immutability.test.ts`, `tests/editorial-api.test.ts`).
+   - 72/72 offline test suites passing.
+   - Both workspaces (`Atlas-gastronomic-repo` and `Atlas-gastronomic`) synchronized.
 
-## Completed in Phase 008.3
-- **Stage 1 (Catalog & Editorial Hero):** Atmospheric dark hero banner, curated editorial showcase ("Selecția editorului"), and interactive collections ("Colecțiile noastre") implemented and approved.
-- **Stage 2 (Recipe Detail & Cookbook Spread Alignment):** Side-by-side 50/50 hero spread, discrete breadcrumb navigation, inline metadata with iconography, Nota Bucătarului quote card, quick ingredients summary teaser, editorial tab navigation strip, circular numbered step badges (1..N), step inline photography, and Sfatul Bucătarului bottom highlight box implemented and approved.
-- **Stage 3 (Cook Mode Circular Timer & Atmosphere Alignment):**
-  - **Ambient Kitchen Backdrop:** Subtly textured photographic kitchen counter atmosphere (`.cook-ambient-backdrop` and `.cook-ambient-overlay`) with deep warm charcoal canvas (`#1c1917`), preserving WCAG AAA contrast and automated computed background color test assertions.
-  - **Circular Radial SVG Timer:** 180px SVG timer circle featuring high-precision mathematical stroke offset (`circumference * (1 - secondsRemaining / totalStepSeconds)`), muted track ring, gold `#D4AF37` radial progress indicator, crisp 2.5rem tabular timer numerals, and dynamic status label.
-  - **Pill-Shaped Ergonomic Controls:** Distinctive rounded gold action pill (`Pornește` / `Pauză`), circular reset button, and quick `+1m` button for kitchen ergonomics.
-  - **Sensory Cue & Sfat Callout Card:** Elegant gold-accented callout card (`.cook-tip-callout-card`) presenting the chef's sensory advice, step success cues, and active/passive time orientation (`m pasiv orientativ`).
-  - **Completion Screen & State Persistence:** Checked circle screen with "Poftă Bună!" upon recipe completion, plus full reload persistence across browser refresh.
-  - **Quality & Verification:** 0 TypeScript compiler errors (`npm run typecheck`), production Vite build verified (1.33s), all 53 local automated tests passing (`npm test`), and real Puppeteer screenshots captured at desktop (1440px) and mobile (390px).
-
-## Constraints Preserved
-- `standards/v1.0.0/` 100% frozen (0 diffs).
-- Database schema and `node:sqlite` persistence layer 100% intact.
-- Deterministic recipe validation engine 100% intact.
-- All DOM test contracts (`.cook-mode-container`, `.cook-step-indicator`, `.cook-instruction`, `.cook-timer-display`, `.btn-cook-next`, `.btn-cook-exit`, etc.) preserved.
-- Both repositories (`Atlas-gastronomic-repo` and `Atlas-gastronomic`) 100% synchronized.
+## Domain Constraints Preserved
+- `standards/v1.0.0/` schemas 100% frozen.
+- Recipe Core V1 domain invariants, DAG rules, and thermal constraints 100% intact.
 - Zero git commits or pushes performed without explicit Product Owner authorization.
-
-## Next action
-Present Stage 3 visual acceptance package and report to Product Owner. Await explicit Product Owner review and instructions.
