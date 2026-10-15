@@ -8,8 +8,9 @@ import {
   Thermometer,
   ShieldAlert,
   Edit3,
-  Compass,
   Wine,
+  Users,
+  Heart,
 } from 'lucide-react';
 
 interface RecipeDetailProps {
@@ -61,6 +62,9 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 }) => {
   const baseYield = recipe.yield?.quantity || 4;
   const [internalServings, setInternalServings] = useState<number>(controlledServings ?? baseYield);
+  const [activeTab, setActiveTab] = useState<'reteta' | 'pasi' | 'note' | 'istoric'>('reteta');
+  const [isFavorite, setIsFavorite] = useState<boolean>(false);
+  const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
 
   // Sync internalServings when controlledServings or recipe changes
   useEffect(() => {
@@ -80,8 +84,6 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
       onServingsChange(clamped);
     }
   };
-
-  const [checkedIngredients, setCheckedIngredients] = useState<Record<string, boolean>>({});
 
   const scaleFactor = servings / baseYield;
 
@@ -116,344 +118,480 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
 
   const getDifficultyLabel = (diff: string | null) => {
     if (diff === 'easy') return 'Ușor';
-    if (diff === 'moderate') return 'Moderat';
+    if (diff === 'moderate') return 'Mediu';
     if (diff === 'advanced') return 'Avansat';
-    return 'Nespecificat';
+    return 'Mediu';
+  };
+
+  const formatTotalTime = (minutes: number | null) => {
+    if (!minutes) return null;
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}min` : `${hours}h`;
+    }
+    return `${minutes} min`;
+  };
+
+  // Smooth scroll to ingredients section
+  const handleScrollToIngredients = () => {
+    setActiveTab('reteta');
+    const el = document.getElementById('ingredients-section');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
     <div className="main-content recipe-detail-page recipe-detail-container">
-      {/* Top Action & Navigation Bar */}
-      <nav className="detail-top-nav">
-        <button type="button" className="btn btn-ghost btn-back-catalogue" onClick={onBack}>
-          <ArrowLeft size={16} />
-          Catalog Canonic
+      {/* 1. TOP BREADCRUMB & SECONDARY ACTIONS */}
+      <div className="detail-top-breadcrumb-bar">
+        <button type="button" className="btn-back-breadcrumb btn-back-catalogue" onClick={onBack}>
+          <ArrowLeft size={15} />
+          <span>Înapoi la catalog</span>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="detail-top-meta-links">
           <button
             type="button"
-            className="btn btn-primary btn-start-cook"
-            onClick={() => onStartCookMode(servings)}
-          >
-            <ChefHat size={17} />
-            Mod de Gătit (Cook Mode)
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-secondary"
+            className="btn-link-action"
             onClick={onOpenEditor}
             title="Deschide în redactor"
           >
-            <Edit3 size={15} />
-            Editează
+            <Edit3 size={14} />
+            <span>Editează rețeta</span>
           </button>
         </div>
-      </nav>
+      </div>
 
-      {/* Cookbook Header Presentation */}
-      <header className="cookbook-hero-header">
-        <div className="cookbook-tradition-tag">
-          <Compass size={14} />
-          <span>{editorial?.heritage || recipe.culinary_tradition || 'Tradiție Europeană Canonică'}</span>
-        </div>
-
-        <h1 className="cookbook-title detail-title">{recipe.title}</h1>
-
-        <p className="cookbook-subtitle">
-          {recipe.summary || editorial?.editorialSubtitle || 'Rețetă canonică autentică documentată cu precizie procedurală.'}
-        </p>
-
-        {editorial?.chefQuote && (
-          <blockquote className="hero-pullquote" style={{ maxWidth: '780px', margin: '0 auto 2rem auto', textAlign: 'left' }}>
-            {editorial.chefQuote}
-          </blockquote>
-        )}
-      </header>
-
-      {/* Hero Food Photography Spread */}
-      <figure className="cookbook-hero-image-spread">
-        <div className="cookbook-hero-image-wrapper">
-          <img
-            src={heroImageSrc}
-            alt={editorial?.imageAlt || recipe.title}
-            className="cookbook-hero-image"
-          />
-        </div>
-        <figcaption className="cookbook-image-footer">
-          <span>{editorial?.imageCaption || 'Fotografie gastronomică realizată în lumina naturală a atelierului culinar.'}</span>
-          <span style={{ color: 'var(--color-gold-dark)' }}>{editorial?.heritage} • Arhiva Atlas Gastronomic</span>
-        </figcaption>
-      </figure>
-
-      {/* Recipe Key Metadata Strip */}
-      <section className="cookbook-metadata-strip">
-        <div className="meta-block">
-          <span className="meta-block-label">Porții Referință</span>
-          <span className="meta-block-value">{servings} {recipe.yield?.unit || 'porții'}</span>
-          <span className="meta-block-sub">Randament bază: {baseYield}</span>
-        </div>
-
-        {recipe.timing?.active_minutes ? (
-          <div className="meta-block">
-            <span className="meta-block-label">Timp Activ (Muncă)</span>
-            <span className="meta-block-value">{recipe.timing.active_minutes} min</span>
-            <span className="meta-block-sub">Preparare & manevrare</span>
+      {/* 2. SIDE-BY-SIDE HERO COMPOSITION (Approved Editorial Reference) */}
+      <section className="recipe-hero-split-section">
+        {/* Left Column: Authentic Photography */}
+        <div className="recipe-hero-split-media">
+          <div className="recipe-hero-image-frame">
+            <img
+              src={heroImageSrc}
+              alt={editorial?.imageAlt || recipe.title}
+              className="recipe-hero-split-image"
+            />
           </div>
-        ) : null}
+          {editorial?.imageCaption && (
+            <p className="recipe-hero-split-caption">
+              {editorial.imageCaption}
+            </p>
+          )}
+        </div>
 
-        {recipe.timing?.total_minutes ? (
-          <div className="meta-block">
-            <span className="meta-block-label">Timp Total</span>
-            <span className="meta-block-value">{recipe.timing.total_minutes} min</span>
-            <span className="meta-block-sub">Fierbere / Coacere inclusă</span>
+        {/* Right Column: Title, Metadata, Actions & Nota Bucătarului */}
+        <div className="recipe-hero-split-content">
+          <div className="recipe-tradition-eyebrow">
+            {editorial?.heritage?.split('•')[0]?.trim().toUpperCase() ||
+              recipe.culinary_tradition?.toUpperCase() ||
+              'TRADIȚIE EUROPEANĂ'}
           </div>
-        ) : null}
 
-        <div className="meta-block">
-          <span className="meta-block-label">Dificultate Tehnică</span>
-          <span className="meta-block-value">{getDifficultyLabel(recipe.difficulty)}</span>
-          <span className="meta-block-sub">Nivel de execuție</span>
+          <h1 className="recipe-hero-title detail-title">{recipe.title}</h1>
+
+          <p className="recipe-hero-summary">
+            {recipe.summary ||
+              editorial?.editorialSubtitle ||
+              'Rețetă canonică autentică documentată cu precizie procedurală și tehnici clasice.'}
+          </p>
+
+          {/* Inline Metadata Row with Icons */}
+          <div className="recipe-hero-meta-row">
+            {recipe.timing?.total_minutes ? (
+              <span className="recipe-hero-meta-item">
+                <Clock size={16} className="recipe-meta-icon" />
+                <span>{formatTotalTime(recipe.timing.total_minutes)}</span>
+              </span>
+            ) : null}
+
+            <span className="recipe-hero-meta-item">
+              <Users size={16} className="recipe-meta-icon" />
+              <span>{servings} {recipe.yield?.unit || 'porții'}</span>
+            </span>
+
+            <span className="recipe-hero-meta-item">
+              <ChefHat size={16} className="recipe-meta-icon" />
+              <span>{getDifficultyLabel(recipe.difficulty)}</span>
+            </span>
+          </div>
+
+          {/* Action Row */}
+          <div className="recipe-hero-actions-row">
+            <button
+              type="button"
+              className="btn btn-primary btn-hero-start-cook btn-start-cook"
+              onClick={() => onStartCookMode(servings)}
+            >
+              <ChefHat size={17} />
+              <span>Începe gătitul →</span>
+            </button>
+
+            <button
+              type="button"
+              className={`btn-icon-circle-favorite ${isFavorite ? 'btn-icon-circle-favorite--active' : ''}`}
+              onClick={() => setIsFavorite(!isFavorite)}
+              aria-label={isFavorite ? 'Elimină din favorite' : 'Salvează la favorite'}
+              title="Salvează la favorite"
+            >
+              <Heart size={18} fill={isFavorite ? 'var(--color-gold-dark)' : 'none'} />
+            </button>
+          </div>
+
+          {/* Nota Bucătarului Quote Box */}
+          <div className="chef-note-quote-box">
+            <div className="chef-note-header">
+              <span className="chef-note-title">Nota bucătarului</span>
+            </div>
+            <blockquote className="chef-note-body">
+              {editorial?.chefQuote ||
+                '„Secretul unui preparat excepțional constă în calitatea ingredientelor, răbdare și respectul pentru timpii de gătire.”'}
+            </blockquote>
+            <div className="chef-note-author">
+              — Chef Marco · Arhiva Atlas Gastronomic
+            </div>
+          </div>
+
+          {/* Quick Ingredients Summary Teaser */}
+          <div className="hero-ingredients-teaser">
+            <div className="hero-ingredients-teaser-header">
+              <span className="teaser-heading">Ingrediente esențiale</span>
+              <button
+                type="button"
+                className="teaser-link-all"
+                onClick={handleScrollToIngredients}
+              >
+                Vezi toate ({recipe.ingredients.length}) →
+              </button>
+            </div>
+            <div className="hero-ingredients-teaser-list">
+              {recipe.ingredients.slice(0, 5).map((ing) => {
+                const scaledQty = formatScaledQuantity(ing.quantity);
+                return (
+                  <span key={ing.id} className="teaser-pill">
+                    {ing.name} {scaledQty ? `(${scaledQty} ${ing.unit || ''})` : ''}
+                  </span>
+                );
+              })}
+              {recipe.ingredients.length > 5 && (
+                <span className="teaser-pill teaser-pill-more">
+                  +{recipe.ingredients.length - 5} altele
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Two-Column Cookbook Body */}
+      {/* 3. EDITORIAL TAB NAVIGATION STRIP */}
+      <nav className="recipe-editorial-tabs-strip" aria-label="Navigare secțiuni rețetă">
+        <button
+          type="button"
+          className={`editorial-tab-item ${activeTab === 'reteta' ? 'editorial-tab-item--active' : ''}`}
+          onClick={() => setActiveTab('reteta')}
+        >
+          Rețetă completă
+        </button>
+        <button
+          type="button"
+          className={`editorial-tab-item ${activeTab === 'pasi' ? 'editorial-tab-item--active' : ''}`}
+          onClick={() => setActiveTab('pasi')}
+        >
+          Pași de preparare ({recipe.steps.length})
+        </button>
+        <button
+          type="button"
+          className={`editorial-tab-item ${activeTab === 'note' ? 'editorial-tab-item--active' : ''}`}
+          onClick={() => setActiveTab('note')}
+        >
+          Note culinare & Acord
+        </button>
+        <button
+          type="button"
+          className={`editorial-tab-item ${activeTab === 'istoric' ? 'editorial-tab-item--active' : ''}`}
+          onClick={() => setActiveTab('istoric')}
+        >
+          Istoric & Tradiție
+        </button>
+      </nav>
+
+      {/* 4. TWO-COLUMN COOKBOOK SPREAD BODY */}
       <div className="cookbook-body-columns">
         {/* Left Column: Scaler & Structured Ingredients */}
-        <aside className="cookbook-ingredients-column">
-          <div className="ingredients-header">
-            <h2 className="ingredients-title">Ingrediente</h2>
-          </div>
-
-          {/* Serving Scaler */}
-          <div className="serving-scaler-control">
-            <span className="scaler-label">Calculează pentru:</span>
-            <div className="scaler-stepper">
-              <button
-                type="button"
-                className="scaler-btn btn-scaler-minus"
-                onClick={() => setServings((s) => Math.max(1, s - 1))}
-                disabled={servings <= 1}
-                title="Scade porții"
-                aria-label="Scade numărul de porții"
-              >
-                −
-              </button>
-              <span className="scaler-count serving-scaler-value">{servings}</span>
-              <button
-                type="button"
-                className="scaler-btn btn-scaler-plus"
-                onClick={() => setServings((s) => s + 1)}
-                title="Crește porții"
-                aria-label="Crește numărul de porții"
-              >
-                +
-              </button>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>
-                {recipe.yield?.unit || 'porții'}
-              </span>
+        {(activeTab === 'reteta' || activeTab === 'pasi') && (
+          <aside id="ingredients-section" className="cookbook-ingredients-column">
+            <div className="ingredients-header">
+              <h2 className="ingredients-title">Ingrediente</h2>
             </div>
-          </div>
 
-          {/* Grouped Ingredients List */}
-          {Object.entries(ingredientGroups).map(([groupName, items]) => (
-            <div key={groupName} className="ingredient-group-block">
-              <h3 className="ingredient-group-title">{groupName}</h3>
-              <div>
-                {items.map((ing) => {
-                  const isChecked = checkedIngredients[ing.id];
-                  const scaledQty = formatScaledQuantity(ing.quantity);
+            {/* Serving Scaler Control */}
+            <div className="serving-scaler-control">
+              <span className="scaler-label">Calculează pentru:</span>
+              <div className="scaler-stepper">
+                <button
+                  type="button"
+                  className="scaler-btn btn-scaler-minus"
+                  onClick={() => setServings((s) => Math.max(1, s - 1))}
+                  disabled={servings <= 1}
+                  title="Scade porții"
+                  aria-label="Scade numărul de porții"
+                >
+                  −
+                </button>
+                <span className="scaler-count serving-scaler-value">{servings}</span>
+                <button
+                  type="button"
+                  className="scaler-btn btn-scaler-plus"
+                  onClick={() => setServings((s) => s + 1)}
+                  title="Crește porții"
+                  aria-label="Crește numărul de porții"
+                >
+                  +
+                </button>
+                <span className="scaler-unit">
+                  {recipe.yield?.unit || 'porții'}
+                </span>
+              </div>
+            </div>
 
-                  return (
-                    <div
-                      key={ing.id}
-                      className="ingredient-item-row"
-                      onClick={() => toggleIngredientCheck(ing.id)}
-                      style={{
-                        cursor: 'pointer',
-                        opacity: isChecked ? 0.45 : 1,
-                        textDecoration: isChecked ? 'line-through' : 'none',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                        <input
-                          type="checkbox"
-                          className="ingredient-checkbox"
-                          checked={Boolean(isChecked)}
-                          onChange={() => {}}
-                          style={{ accentColor: 'var(--color-olive)', cursor: 'pointer' }}
-                        />
-                        <span className="ingredient-name">{ing.name}</span>
+            {/* Grouped Ingredients List */}
+            {Object.entries(ingredientGroups).map(([groupName, items]) => (
+              <div key={groupName} className="ingredient-group-block">
+                <h3 className="ingredient-group-title">{groupName}</h3>
+                <div>
+                  {items.map((ing) => {
+                    const isChecked = checkedIngredients[ing.id];
+                    const scaledQty = formatScaledQuantity(ing.quantity);
+
+                    return (
+                      <div
+                        key={ing.id}
+                        className={`ingredient-item-row ${isChecked ? 'ingredient-item-row--checked' : ''}`}
+                        onClick={() => toggleIngredientCheck(ing.id)}
+                      >
+                        <div className="ingredient-label-wrap">
+                          <input
+                            type="checkbox"
+                            className="ingredient-checkbox"
+                            checked={Boolean(isChecked)}
+                            onChange={() => {}}
+                          />
+                          <span className="ingredient-name">{ing.name}</span>
+                        </div>
+
+                        <div className="ingredient-qty-unit">
+                          {scaledQty ? (
+                            <span>
+                              {scaledQty} {ing.unit}
+                            </span>
+                          ) : (
+                            <span className="ingredient-qty-taste">
+                              după gust
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Quick Launch Cook Mode Button at bottom of ingredients */}
+            <div className="ingredients-bottom-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-start-cook"
+                onClick={() => onStartCookMode(servings)}
+              >
+                <ChefHat size={16} />
+                Gătește cu aceste cantități
+              </button>
+            </div>
+          </aside>
+        )}
+
+        {/* Right Column: Procedural Cooking Steps & Highlights */}
+        <main className="cookbook-instructions-column">
+          {(activeTab === 'reteta' || activeTab === 'pasi') && (
+            <section className="procedural-steps-section">
+              <h2 className="instructions-section-title">Pași de preparare</h2>
+
+              {recipe.steps.map((step, idx) => {
+                const stepNumber = step.step_number || idx + 1;
+                const isFirstStep = idx === 0;
+
+                return (
+                  <article key={step.id || idx} className="step-card">
+                    <div className="step-card-main-layout">
+                      {/* Circular Step Ordinal Badge */}
+                      <div className="step-circle-badge">
+                        <span>{stepNumber}</span>
                       </div>
 
-                      <div className="ingredient-qty-unit">
-                        {scaledQty ? (
-                          <span>
-                            {scaledQty} {ing.unit}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-subtle)' }}>
-                            după gust
-                          </span>
+                      <div className="step-card-content-wrap">
+                        <header className="step-header-row">
+                          <span className="step-ordinal">Pasul {stepNumber}</span>
+
+                          <div className="step-meta-badges">
+                            {step.duration_minutes ? (
+                              <span className="step-timing-badge">
+                                <Clock size={13} />
+                                {step.duration_minutes} min
+                              </span>
+                            ) : null}
+
+                            {step.temperature_c ? (
+                              <span className="step-timing-badge step-timing-badge--temp">
+                                <Thermometer size={13} />
+                                {step.temperature_c}°C
+                              </span>
+                            ) : null}
+                          </div>
+                        </header>
+
+                        <div className="step-body-inline-flex">
+                          {isFirstStep && (
+                            <img
+                              src={heroImageSrc}
+                              alt="Pasul de pregătire"
+                              className="step-inline-thumb"
+                              loading="lazy"
+                            />
+                          )}
+                          <p className="step-instruction-text">{step.instruction}</p>
+                        </div>
+
+                        {/* Step Ingredients Allocation */}
+                        {step.allocations && step.allocations.length > 0 && (
+                          <div className="step-allocations-panel">
+                            <span className="step-allocations-title">
+                              Ingrediente utilizate în acest pas:
+                            </span>
+                            <div className="step-allocations-tags">
+                              {step.allocations.map((a, i) => {
+                                const ing = recipe.ingredients.find(
+                                  (item) => item.ingredient_id === a.ingredient_id
+                                );
+                                const scaledQty = a.quantity_used_in_step
+                                  ? formatScaledQuantity(a.quantity_used_in_step)
+                                  : null;
+                                return (
+                                  <span key={i} className="step-allocation-tag">
+                                    <strong>{ing ? ing.name : a.ingredient_id}</strong>
+                                    {scaledQty ? `: ${scaledQty} ${a.unit || ing?.unit || ''}` : ''}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Sensory Completion Cue & Thermal Constraints */}
+                        {(step.success_cue ||
+                          (step.thermal_constraints && step.thermal_constraints.length > 0)) && (
+                          <div className="step-cues-panel">
+                            {step.success_cue && (
+                              <div className="cue-item">
+                                <span className="cue-label">Indiciu Senzorial de Finalizare</span>
+                                <span className="cue-value">{step.success_cue}</span>
+                              </div>
+                            )}
+                            {step.thermal_constraints && step.thermal_constraints.length > 0 && (
+                              <div className="cue-item">
+                                <span className="cue-label">Temperatură Țintă</span>
+                                <span className="cue-value">
+                                  {step.thermal_constraints
+                                    .map(
+                                      (tc) =>
+                                        `${
+                                          tc.measurement_point === 'product_core'
+                                            ? 'Miez'
+                                            : tc.measurement_point === 'surface'
+                                            ? 'Suprafață'
+                                            : 'Echipament'
+                                        }: ${
+                                          tc.target_c
+                                            ? `${tc.target_c}°C`
+                                            : `${tc.min_c ?? ''}-${tc.max_c ?? ''}°C`
+                                        }`
+                                    )
+                                    .join(' | ')}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Culinary Risks & Tips */}
+                        {step.risks && step.risks.length > 0 && (
+                          <div className="step-risks-list">
+                            {step.risks.map((risk, rIdx) => (
+                              <div key={rIdx} className={getRiskBadgeClass(risk.warning_type)}>
+                                <ShieldAlert size={15} className="badge-risk-icon" />
+                                <div className="badge-risk-content">
+                                  <strong className="badge-risk-title">
+                                    {getRiskLabel(risk.warning_type)}:
+                                  </strong>{' '}
+                                  {risk.message}
+                                  {risk.mitigation ? (
+                                    <span className="badge-risk-mitigation">
+                                      Remediu: {risk.mitigation}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
-                  );
-                })}
+                  </article>
+                );
+              })}
+
+              {/* Sfatul Bucătarului Bottom Highlight Box (as in approved mockup) */}
+              <div className="chef-tip-highlight-card">
+                <div className="chef-tip-thumb-wrap">
+                  <img
+                    src={heroImageSrc}
+                    alt={recipe.title}
+                    className="chef-tip-thumb-image"
+                    loading="lazy"
+                  />
+                </div>
+                <div className="chef-tip-text-body">
+                  <span className="chef-tip-badge-eyebrow">Sfatul bucătarului</span>
+                  <p className="chef-tip-advice">
+                    {editorial?.chefTip ||
+                      'Un vin roșu bun face diferența în profunzimea gustului. Mențineți focul domol și lăsați ingredientele să-și elibereze treptat aromele.'}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
-
-          {/* Quick Launch Cook Mode Button at bottom of ingredients */}
-          <div style={{ marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-light)' }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ width: '100%' }}
-              onClick={() => onStartCookMode(servings)}
-            >
-              <ChefHat size={16} />
-              Gătește cu aceste cantități
-            </button>
-          </div>
-        </aside>
-
-        {/* Right Column: Cooking Steps & Procedural Execution */}
-        <main className="cookbook-instructions-column">
-          <h2 className="instructions-section-title">Mod de Preparare & Pași Procedurali</h2>
-
-          {recipe.steps.map((step, idx) => {
-            const stepNumber = step.step_number || idx + 1;
-
-            return (
-              <article key={step.id || idx} className="step-card">
-                <header className="step-header-row">
-                  <span className="step-ordinal">Pasul {stepNumber}</span>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    {step.duration_minutes ? (
-                      <span className="step-timing-badge">
-                        <Clock size={13} />
-                        {step.duration_minutes} min
-                      </span>
-                    ) : null}
-
-                    {step.temperature_c ? (
-                      <span className="step-timing-badge" style={{ color: 'var(--color-gold-dark)' }}>
-                        <Thermometer size={13} />
-                        {step.temperature_c}°C
-                      </span>
-                    ) : null}
-                  </div>
-                </header>
-
-                <p className="step-instruction-text">{step.instruction}</p>
-
-                {/* Step Ingredients Allocation */}
-                {step.allocations && step.allocations.length > 0 && (
-                  <div
-                    style={{
-                      background: 'var(--bg-subtle)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: 'var(--radius-xs)',
-                      padding: '0.65rem 0.85rem',
-                      marginBottom: '1rem',
-                      fontSize: '0.85rem',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, color: 'var(--color-olive)', display: 'block', marginBottom: '0.25rem' }}>
-                      Ingrediente utilizate în acest pas:
-                    </span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {step.allocations.map((a, i) => {
-                        const ing = recipe.ingredients.find((item) => item.ingredient_id === a.ingredient_id);
-                        const scaledQty = a.quantity_used_in_step ? formatScaledQuantity(a.quantity_used_in_step) : null;
-                        return (
-                          <span
-                            key={i}
-                            style={{
-                              background: 'var(--bg-surface)',
-                              border: '1px solid var(--border-editorial)',
-                              borderRadius: 'var(--radius-xs)',
-                              padding: '0.2rem 0.5rem',
-                              fontSize: '0.8rem',
-                            }}
-                          >
-                            <strong>{ing ? ing.name : a.ingredient_id}</strong>
-                            {scaledQty ? `: ${scaledQty} ${a.unit || ing?.unit || ''}` : ''}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Sensory Completion Cue & Thermal Constraints */}
-                {(step.success_cue || (step.thermal_constraints && step.thermal_constraints.length > 0)) && (
-                  <div className="step-cues-panel">
-                    {step.success_cue && (
-                      <div className="cue-item">
-                        <span className="cue-label">Indiciu Senzorial de Finalizare</span>
-                        <span className="cue-value">{step.success_cue}</span>
-                      </div>
-                    )}
-                    {step.thermal_constraints && step.thermal_constraints.length > 0 && (
-                      <div className="cue-item">
-                        <span className="cue-label">Temperatură Țintă</span>
-                        <span className="cue-value">
-                          {step.thermal_constraints.map((tc) => 
-                            `${tc.measurement_point === 'product_core' ? 'Miez' : tc.measurement_point === 'surface' ? 'Suprafață' : 'Echipament'}: ${tc.target_c ? `${tc.target_c}°C` : `${tc.min_c ?? ''}-${tc.max_c ?? ''}°C`}`
-                          ).join(' | ')}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Culinary Risks & Tips */}
-                {step.risks && step.risks.length > 0 && (
-                  <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {step.risks.map((risk, rIdx) => (
-                      <div
-                        key={rIdx}
-                        className={getRiskBadgeClass(risk.warning_type)}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: 'var(--radius-xs)',
-                          fontSize: '0.83rem',
-                        }}
-                      >
-                        <ShieldAlert size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-                        <div>
-                          <strong>{getRiskLabel(risk.warning_type)}:</strong> {risk.message}
-                          {risk.mitigation ? <span style={{ display: 'block', fontStyle: 'italic', marginTop: '0.2rem', opacity: 0.9 }}>Remediu: {risk.mitigation}</span> : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </article>
-            );
-          })}
+            </section>
+          )}
 
           {/* Terroir & Sommelier Pairing Editorial Box */}
-          {editorial && (
+          {(activeTab === 'reteta' || activeTab === 'note' || activeTab === 'istoric') && editorial && (
             <section className="cookbook-terroir-box">
               <h3 className="terroir-box-title">
                 <Wine size={18} />
                 Acord Oenologic & Note de Terroir
               </h3>
               <div className="terroir-box-content">
-                <p style={{ marginBottom: '0.5rem' }}>
+                <p className="terroir-item">
                   <strong>Terroir & Proveniență:</strong> {editorial.terroir} ({editorial.region})
                 </p>
-                <p>
+                <p className="terroir-item">
                   <strong>Recomandare Sommelier:</strong> {editorial.pairingSuggestion}
                 </p>
+                {editorial.heritage && (
+                  <p className="terroir-item">
+                    <strong>Patrimoniu & Arhivă:</strong> {editorial.heritage}
+                  </p>
+                )}
               </div>
             </section>
           )}

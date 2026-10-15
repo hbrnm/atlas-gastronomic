@@ -10,6 +10,7 @@ export interface RecipeEditorialProfile {
   region: string;
   terroir: string;
   chefQuote: string;
+  chefTip?: string;
   pairingSuggestion: string;
   editorialSubtitle: string;
 }
@@ -24,6 +25,7 @@ export const EDITORIAL_RECIPES: Record<string, RecipeEditorialProfile> = {
     region: 'Accademia Italiana della Cucina (Depus la Camera de Comerț, 1982)',
     terroir: 'Câmpia Padului, Parmigiano-Reggiano maturat 24 luni, carne tocată la cuțit',
     chefQuote: '„Adevăratul ragù nu este un sos de roșii cu carne, ci o simfonie lentă a cărnii îmbogățită cu lapte și vin.”',
+    chefTip: 'Un vin roșu bun face diferența în profunzimea gustului. Adăugați laptele după ce vinul s-a evaporat complet pentru a frăgezi fibrele cărnii.',
     pairingSuggestion: 'Sangiovese di Romagna Superiore DOC sau Lambrusco Grasparossa',
     editorialSubtitle: 'Simbolul suprem al pastelor proaspete emiliene și al gătirii lente.',
   },
@@ -36,6 +38,7 @@ export const EDITORIAL_RECIPES: Record<string, RecipeEditorialProfile> = {
     region: 'Tradiție nobiliară milaneză (Documentat 1574)',
     terroir: 'Orez Carnaroli din bazinul Padului, șofran pur pistiluri, măduvă de vițel',
     chefQuote: '„Risotto-ul trebuie să curgă ca un val pe farfurie — ferm în bob, cremos și strălucitor ca aurul pur.”',
+    chefTip: 'Mențineți supa fierbinte pe tot parcursul gătirii. Turnarea supei reci oprește fierberea orezului și rupe textura cremoasă all’onda.',
     pairingSuggestion: 'Franciacorta Brut DOCG sau Pinot Nero dell’Oltrepò Pavese',
     editorialSubtitle: 'Capodopera cremozității și a aromei aristocratice de șofran.',
   },
@@ -48,6 +51,7 @@ export const EDITORIAL_RECIPES: Record<string, RecipeEditorialProfile> = {
     region: 'Haute Cuisine & Gastronomie Rustic-Nobilă Franceză',
     terroir: 'Rasă bovină Charolaise, Pinot Noir de Bourgogne, buchet garni proaspăt',
     chefQuote: '„Răbdarea este singurul ingredient de neînlocuit: sosul trebuie să devină catifea, iar carnea să cedeze la simpla atingere a furculiței.”',
+    chefTip: 'Rumenirea temeinică a cărnii în tranșe mici este secretul gustului profund. Dacă aglomerați vasul, carnea va fierbe în suc propriu în loc să se rumenească.',
     pairingSuggestion: 'Gevrey-Chambertin, Pommard sau Bourgogne Pinot Noir maturat',
     editorialSubtitle: 'Triumful gătirii la foc mic și al vinului nobil burgund.',
   },
@@ -60,6 +64,7 @@ export const EDITORIAL_RECIPES: Record<string, RecipeEditorialProfile> = {
     region: 'Școala clasică a lui Marie-Antoine Carême & Auguste Escoffier',
     terroir: 'Comté AOP din masivul Jura, lapte integral de fermă, nucșoară măcinată pe loc',
     chefQuote: '„Oaspeții așteaptă soufflé-ul; soufflé-ul nu așteaptă niciodată pe nimeni.”',
+    chefTip: 'Ungeți formele de ramekin cu unt rece folosind mișcări verticale ascendente; acest detaliu ghidează ascensiunea uniformă și spectaculoasă a aluatului.',
     pairingSuggestion: 'Chablis Premier Cru sau Côtes du Jura Savagnin',
     editorialSubtitle: 'Cea mai delicată arhitectură termică a bucătăriei clasice franceze.',
   },
@@ -72,6 +77,7 @@ export const EDITORIAL_RECIPES: Record<string, RecipeEditorialProfile> = {
     region: 'Patrimoniu culinar românesc imaterial',
     terroir: 'Varză murată la butoi de stejar, carne mixtă porc-vită, cimbru sălbatic de grădină',
     chefQuote: '„Sarmaua desăvârșită cere foi subțiri ca mătasea, foc blând ca o rugăciune și odihnă de o zi înainte de ospăț.”',
+    chefTip: 'Gustați foile de varză murată înainte de împăturit; dacă sunt prea sărate sau acre, lăsați-le la desărat în apă călduță timp de 1–2 ore înainte de rulare.',
     pairingSuggestion: 'Fetească Neagră de Dealu Mare baricată sau Novac',
     editorialSubtitle: 'Sărbătoarea ospitalității și a gustului profund românesc.',
   },

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Recipe, RecipeStep } from '../../shared/types.js';
+import { getRecipeEditorial } from '../services/editorialData.js';
 import {
   ArrowLeft,
   ChevronLeft,
-  ChevronRight,
   Play,
   Pause,
   RotateCcw,
@@ -48,6 +48,9 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
   const currentServings = servings && servings > 0 ? servings : baseYield;
   const scaleFactor = currentServings / baseYield;
 
+  const editorial = getRecipeEditorial(recipe.id);
+  const heroImageSrc = editorial?.image || '/images/tagliatelle-ragu.jpg';
+
   const formatScaledQuantity = (qty: number | null | undefined): string => {
     if (qty === null || qty === undefined) return '';
     const scaled = qty * scaleFactor;
@@ -55,14 +58,18 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
     if (scaled < 1) return scaled.toFixed(2).replace(/\.?0+$/, '');
     return scaled.toFixed(1).replace(/\.?0+$/, '');
   };
-  
+
   // Load saved cook step from localStorage if available across page reloads
   const [currentStepIdx, setCurrentStepIdx] = useState(() => {
     try {
       const saved = localStorage.getItem(`atlas_cook_progress_${recipe.id}`);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (typeof parsed.stepIdx === 'number' && parsed.stepIdx >= 0 && parsed.stepIdx < steps.length) {
+        if (
+          typeof parsed.stepIdx === 'number' &&
+          parsed.stepIdx >= 0 &&
+          parsed.stepIdx < steps.length
+        ) {
           return parsed.stepIdx;
         }
       }
@@ -99,11 +106,14 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
   // Save cook progress on change
   useEffect(() => {
     try {
-      localStorage.setItem(`atlas_cook_progress_${recipe.id}`, JSON.stringify({
-        stepIdx: currentStepIdx,
-        completed: completedSteps,
-        isCompleted,
-      }));
+      localStorage.setItem(
+        `atlas_cook_progress_${recipe.id}`,
+        JSON.stringify({
+          stepIdx: currentStepIdx,
+          completed: completedSteps,
+          isCompleted,
+        })
+      );
     } catch {}
   }, [recipe.id, currentStepIdx, completedSteps, isCompleted]);
 
@@ -170,181 +180,108 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
   const isLastStep = currentStepIdx === steps.length - 1;
   const progressPercent = steps.length > 0 ? ((currentStepIdx + 1) / steps.length) * 100 : 0;
 
+  // Circular timer calculation
+  const totalStepSeconds = (currentStep?.duration_minutes || 0) * 60;
+  const radius = 68;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset =
+    totalStepSeconds > 0
+      ? circumference * (1 - secondsRemaining / totalStepSeconds)
+      : 0;
+
   // Human-friendly parallel info
-  const isParallelRoot = Array.isArray(currentStep?.depends_on) && currentStep.depends_on.length === 0;
+  const isParallelRoot =
+    Array.isArray(currentStep?.depends_on) && currentStep.depends_on.length === 0;
+
+  // Extract step headline or key action phrase
+  const getStepHeadline = (instruction: string, num: number) => {
+    if (!instruction) return `Pasul ${num}`;
+    const clean = instruction.trim();
+    const firstPeriod = clean.indexOf('.');
+    const firstColon = clean.indexOf(':');
+    const cutIdx =
+      firstPeriod > 0 && firstColon > 0
+        ? Math.min(firstPeriod, firstColon)
+        : firstPeriod > 0
+        ? firstPeriod
+        : firstColon > 0
+        ? firstColon
+        : -1;
+
+    if (cutIdx > 5 && cutIdx <= 45) {
+      return clean.substring(0, cutIdx).trim();
+    }
+    return `Pasul ${num}`;
+  };
 
   return (
-    <div
-      className="cook-mode-overlay cook-mode-container"
-      style={{
-        minHeight: '100vh',
-        background: '#1c1917', // Dark slate contrast for kitchen readability
-        color: '#fcfbf9',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Cook Mode Header Bar */}
-      <header
-        style={{
-          background: '#292524',
-          borderBottom: '1px solid #44403c',
-          padding: '0.85rem 1.25rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
+    <div className="cook-mode-viewport cook-mode-overlay cook-mode-container">
+      {/* Ambient Photographic Kitchen Backdrop */}
+      <div
+        className="cook-ambient-backdrop"
+        style={{ backgroundImage: `url(${heroImageSrc})` }}
+      />
+      <div className="cook-ambient-overlay" />
+
+      {/* Top Header Bar */}
+      <header className="cook-mode-header">
         <button
           type="button"
           className="btn-cook-exit"
           onClick={handleExitCookMode}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#d6d3d1',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-          }}
+          aria-label="Ieși din Cook Mode"
         >
           <ArrowLeft size={18} />
-          Ieși din Cook Mode
+          <span className="btn-cook-exit-label-full">Cook Mode</span>
+          <span className="btn-cook-exit-label-short">Ieși</span>
         </button>
 
-        <div style={{ textAlign: 'center', flex: 1, padding: '0 1rem' }}>
-          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a8a29e' }}>
-            {recipe.title}
-          </div>
-          <div className="cook-step-indicator" style={{ fontFamily: 'var(--font-serif)', fontSize: '1rem', color: '#ffedd5', fontWeight: 600 }}>
-            Pasul {currentStepIdx + 1} din {steps.length} {scaleFactor !== 1 ? `(${currentServings} porții)` : ''}
+        <div className="cook-header-title-box">
+          <div className="cook-header-recipe-name">{recipe.title}</div>
+          <div className="cook-step-indicator">
+            Pasul {currentStepIdx + 1} din {steps.length}{' '}
+            {scaleFactor !== 1 ? `(${currentServings} porții)` : ''}
           </div>
         </div>
 
-        <div style={{ width: '80px', textAlign: 'right', fontSize: '0.85rem', color: '#fb923c', fontWeight: 700 }}>
-          {Math.round(progressPercent)}%
-        </div>
+        <div className="cook-header-percent">{Math.round(progressPercent)}%</div>
       </header>
 
-      {/* Progress Bar */}
-      <div style={{ width: '100%', height: '4px', background: '#44403c' }}>
-        <div
-          style={{
-            width: `${progressPercent}%`,
-            height: '100%',
-            background: 'var(--accent-primary)',
-            transition: 'width 0.3s ease',
-          }}
-        />
+      {/* Top Hairline Progress Bar */}
+      <div className="cook-progress-track">
+        <div className="cook-progress-fill" style={{ width: `${progressPercent}%` }} />
       </div>
 
       {/* Step Body Container */}
-      <main
-        style={{
-          flex: 1,
-          maxWidth: '820px',
-          width: '100%',
-          margin: '0 auto',
-          padding: '2rem 1.5rem 6rem 1.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-        }}
-      >
+      <main className="cook-mode-content cook-mode-main">
         {isCompleted ? (
-          <div className="cook-completion-screen" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div
-              style={{
-                width: '84px',
-                height: '84px',
-                borderRadius: '50%',
-                background: 'rgba(34, 197, 94, 0.2)',
-                color: '#4ade80',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 1.5rem auto',
-                border: '2px solid #22c55e',
-              }}
-            >
+          <div className="cook-completion-screen">
+            <div className="cook-completion-icon-wrapper">
               <CheckCircle size={48} />
             </div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '2.5rem',
-                color: '#fef3c7',
-                marginBottom: '0.85rem',
-              }}
-            >
-              Poftă Bună!
-            </h1>
-            <p
-              style={{
-                fontSize: '1.15rem',
-                color: '#d6d3d1',
-                marginBottom: '2.5rem',
-                lineHeight: 1.6,
-                maxWidth: '540px',
-                margin: '0 auto 2.5rem auto',
-              }}
-            >
-              Ai completat cu succes toți cei {steps.length} pași pentru <strong>{recipe.title}</strong>. Preparatul este gata pentru servire!
+            <h1 className="cook-completion-title">Poftă Bună!</h1>
+            <p className="cook-completion-desc">
+              Ai completat cu succes toți cei {steps.length} pași pentru{' '}
+              <strong>{recipe.title}</strong>. Preparatul este gata pentru servire!
             </p>
             <button
               type="button"
               className="btn btn-primary btn-cook-exit"
-              style={{
-                padding: '0.85rem 2.25rem',
-                fontSize: '1.05rem',
-                fontWeight: 700,
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-              }}
               onClick={handleExitCookMode}
             >
               Înapoi la Detalii Rețetă
             </button>
           </div>
         ) : currentStep ? (
-          <div>
-            {/* Context Notice / Parallel Tracking in plain human language */}
+          <div className="cook-step-container">
+            {/* Context Notice / Parallel Tracking */}
             {isParallelRoot ? (
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(3, 105, 161, 0.25)',
-                  color: '#38bdf8',
-                  border: '1px solid #0284c7',
-                  fontSize: '0.82rem',
-                  marginBottom: '1rem',
-                }}
-              >
+              <div className="cook-dependency-badge cook-dependency-badge--parallel">
                 <GitFork size={14} />
                 <strong>Ramură Independentă:</strong> Se poate pregăti în paralel sau în avans
               </div>
             ) : Array.isArray(currentStep.depends_on) && currentStep.depends_on.length > 0 ? (
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(217, 119, 6, 0.2)',
-                  color: '#fbbf24',
-                  border: '1px solid #b45309',
-                  fontSize: '0.82rem',
-                  marginBottom: '1rem',
-                }}
-              >
+              <div className="cook-dependency-badge cook-dependency-badge--depends">
                 <GitFork size={14} />
                 Continuă după pașii:{' '}
                 {currentStep.depends_on
@@ -356,45 +293,160 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
               </div>
             ) : null}
 
-            {/* Giant Instruction */}
-            <div
-              className="cook-instruction"
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: '1.65rem',
-                lineHeight: 1.55,
-                color: '#fafaf9',
-                marginBottom: '1.75rem',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {currentStep.instruction}
+            {/* Step Headline & Estimated Time */}
+            <div className="cook-step-headline-wrap">
+              <h2 className="cook-step-headline">
+                {getStepHeadline(currentStep.instruction, currentStep.step_number || currentStepIdx + 1)}
+              </h2>
+              {currentStep.duration_minutes ? (
+                <div className="cook-step-timing-est">
+                  <Clock size={15} />
+                  <span>
+                    Timp estimat: {currentStep.duration_minutes} min
+                    {currentStep.active_minutes ? ` • ${currentStep.active_minutes}m activ` : ''}
+                    {currentStep.passive_minutes ? ` • ${currentStep.passive_minutes}m pasiv orientativ` : ''}
+                  </span>
+                </div>
+              ) : null}
             </div>
+
+            {/* Full Instruction */}
+            <div className="cook-instruction">{currentStep.instruction}</div>
+
+            {/* CIRCULAR RADIAL SVG TIMER (Approved Editorial Reference) */}
+            {currentStep.duration_minutes && currentStep.duration_minutes > 0 ? (
+              <div className="cook-radial-timer-section">
+                <div className="cook-radial-timer-visual">
+                  <svg
+                    className="cook-radial-svg"
+                    width="180"
+                    height="180"
+                    viewBox="0 0 180 180"
+                  >
+                    {/* Background Track Circle */}
+                    <circle
+                      cx="90"
+                      cy="90"
+                      r={radius}
+                      className="cook-radial-track"
+                    />
+                    {/* Active Gold Radial Progress Circle */}
+                    <circle
+                      cx="90"
+                      cy="90"
+                      r={radius}
+                      className="cook-radial-progress"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                      transform="rotate(-90 90 90)"
+                    />
+                  </svg>
+
+                  {/* Center Numerical Time & Label */}
+                  <div className="cook-radial-center-content">
+                    <div
+                      className={`cook-timer-display ${
+                        secondsRemaining === 0
+                          ? 'cook-timer-display--complete'
+                          : isTimerRunning
+                          ? 'cook-timer-display--running'
+                          : ''
+                      }`}
+                    >
+                      {formatTimer(secondsRemaining)}
+                    </div>
+                    <span className="cook-radial-label">
+                      {currentStep.passive_minutes ? 'Timp pasiv orientativ' : 'Timp rămas'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Pill Controls Row */}
+                <div className="cook-radial-controls-row">
+                  <button
+                    type="button"
+                    className={`cook-pill-btn-timer ${
+                      isTimerRunning ? 'cook-pill-btn-timer--pause' : ''
+                    }`}
+                    onClick={() => setIsTimerRunning((r) => !r)}
+                  >
+                    {isTimerRunning ? <Pause size={16} /> : <Play size={16} />}
+                    <span>{isTimerRunning ? 'Pauză' : 'Pornește'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="cook-pill-btn-icon"
+                    onClick={() => {
+                      setIsTimerRunning(false);
+                      setSecondsRemaining((currentStep.duration_minutes || 0) * 60);
+                    }}
+                    title="Resetează cronometrul"
+                    aria-label="Resetează cronometrul"
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="cook-pill-btn-icon"
+                    onClick={() => setSecondsRemaining((s) => s + 60)}
+                    title="Adaugă 1 minut"
+                    aria-label="Adaugă 1 minut"
+                  >
+                    +1m
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Ingredients Needed in this Step */}
+            {currentStep.ingredient_refs && currentStep.ingredient_refs.length > 0 && (
+              <div className="cook-ingredients-box">
+                <div className="cook-panel-eyebrow">Ingrediente pentru acest pas:</div>
+                <div className="cook-ingredients-list">
+                  {currentStep.ingredient_refs.map((refId) => {
+                    const ing = (recipe.ingredients || []).find(
+                      (i) => (i.ingredient_id || i.id) === refId
+                    );
+                    const alloc = (currentStep.allocations || []).find(
+                      (a) => a.ingredient_id === refId
+                    );
+
+                    return (
+                      <span key={refId} className="cook-ingredient-tag">
+                        {alloc?.quantity_used_in_step ? (
+                          <strong className="cook-ingredient-tag-qty">
+                            {formatScaledQuantity(alloc.quantity_used_in_step)}{' '}
+                            {alloc.unit || ing?.unit || ''}{' '}
+                          </strong>
+                        ) : ing?.quantity ? (
+                          <strong className="cook-ingredient-tag-qty">
+                            {formatScaledQuantity(ing.quantity)} {ing.unit || ''}{' '}
+                          </strong>
+                        ) : null}
+                        {ing?.name || refId}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Step Thermal Constraint Highlight */}
             {currentStep.thermal_constraints && currentStep.thermal_constraints.length > 0 && (
-              <div
-                style={{
-                  marginBottom: '1.5rem',
-                  padding: '0.85rem 1.1rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: '#292524',
-                  borderLeft: '4px solid #f59e0b',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                }}
-              >
-                <Thermometer size={22} style={{ color: '#f59e0b', flexShrink: 0 }} />
+              <div className="cook-panel cook-thermal-panel">
+                <Thermometer size={20} className="cook-thermal-icon" />
                 <div>
-                  <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.06em' }}>
-                    Control Termic Critic
-                  </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 600, color: '#fef3c7' }}>
+                  <div className="cook-panel-eyebrow">Control Termic Critic</div>
+                  <div className="cook-thermal-value">
                     {currentStep.thermal_constraints.map((tc, idx) => (
                       <span key={idx}>
                         {tc.notes || 'Temperatură'}:{' '}
-                        {tc.target_c ? `${tc.target_c}°C` : `${tc.min_c ?? ''}-${tc.max_c ?? ''}°C`} (
+                        {tc.target_c
+                          ? `${tc.target_c}°C`
+                          : `${tc.min_c ?? ''}-${tc.max_c ?? ''}°C`}{' '}
+                        (
                         {tc.measurement_point === 'product_core'
                           ? 'miez produs'
                           : tc.measurement_point === 'surface'
@@ -410,221 +462,46 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
 
             {/* Step Risk Warnings */}
             {currentStep.risks && currentStep.risks.length > 0 && (
-              <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {currentStep.risks.map((risk, rIdx) => (
-                  <div
-                    key={rIdx}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      borderRadius: 'var(--radius-sm)',
-                      background:
-                        risk.warning_type === 'irreversible_risk'
-                          ? 'rgba(185, 28, 28, 0.25)'
-                          : 'rgba(217, 119, 6, 0.2)',
-                      border:
-                        risk.warning_type === 'irreversible_risk'
-                          ? '1px solid #ef4444'
-                          : '1px solid #f59e0b',
-                      color: '#fee2e2',
-                      fontSize: '0.9rem',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.65rem',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    <ShieldAlert
-                      size={18}
-                      style={{
-                        color: risk.warning_type === 'irreversible_risk' ? '#f87171' : '#fbbf24',
-                        flexShrink: 0,
-                        marginTop: '2px',
-                      }}
-                    />
-                    <div>
-                      <strong style={{ color: '#ffffff' }}>
-                        [{risk.warning_type === 'irreversible_risk' ? 'Risc Ireversibil' : 'Atenție Culinară'}]:
-                      </strong>{' '}
-                      {risk.message}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Ingredients Needed in this Step */}
-            {currentStep.ingredient_refs && currentStep.ingredient_refs.length > 0 && (
-              <div
-                style={{
-                  marginBottom: '1.75rem',
-                  padding: '1rem 1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: '#292524',
-                  border: '1px solid #44403c',
-                }}
-              >
-                <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.06em', marginBottom: '0.5rem' }}>
-                  Ingrediente utilizate la acest pas:
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {currentStep.ingredient_refs.map((refId) => {
-                    const ing = (recipe.ingredients || []).find((i) => (i.ingredient_id || i.id) === refId);
-                    const alloc = (currentStep.allocations || []).find((a) => a.ingredient_id === refId);
-
-                    return (
-                      <span
-                        key={refId}
-                        style={{
-                          fontSize: '0.88rem',
-                          padding: '0.35rem 0.75rem',
-                          background: '#1c1917',
-                          border: '1px solid #57534e',
-                          borderRadius: 'var(--radius-sm)',
-                          color: '#f5f5f4',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {alloc?.quantity_used_in_step ? (
-                          <strong style={{ color: '#fb923c' }}>
-                            {formatScaledQuantity(alloc.quantity_used_in_step)} {alloc.unit || ing?.unit || ''}{' '}
-                          </strong>
-                        ) : ing?.quantity ? (
-                          <strong style={{ color: '#fb923c' }}>
-                            {formatScaledQuantity(ing.quantity)} {ing.unit || ''}{' '}
-                          </strong>
-                        ) : null}
-                        {ing?.name || refId}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Sensory Success Cue */}
-            {currentStep.success_cue && (
-              <div
-                style={{
-                  marginBottom: '2rem',
-                  padding: '0.75rem 1rem',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(234, 88, 12, 0.15)',
-                  borderLeft: '3px solid #ea580c',
-                  fontSize: '0.92rem',
-                  color: '#fed7aa',
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  gap: '0.5rem',
-                }}
-              >
-                <Sparkles size={16} style={{ color: '#fb923c', flexShrink: 0 }} />
-                <div>
-                  <strong>Indiciu de reușită:</strong> {currentStep.success_cue}
-                </div>
-              </div>
-            )}
-
-            {/* Interactive Step Countdown Timer */}
-            {currentStep.duration_minutes && currentStep.duration_minutes > 0 ? (
-              <div
-                style={{
-                  padding: '1.25rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: '#292524',
-                  border: isTimerRunning ? '1px solid var(--accent-primary)' : '1px solid #44403c',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '1rem',
-                  boxShadow: isTimerRunning ? '0 0 15px rgba(234, 88, 12, 0.2)' : 'none',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <Clock size={28} style={{ color: isTimerRunning ? '#fb923c' : '#a8a29e' }} />
-                  <div>
-                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#a8a29e', letterSpacing: '0.06em' }}>
-                      Cronometru Pas ({currentStep.duration_minutes} min
-                      {currentStep.active_minutes ? ` • ${currentStep.active_minutes}m activ` : ''}
-                      {currentStep.passive_minutes ? ` • ${currentStep.passive_minutes}m pasiv orientativ` : ''})
-                    </div>
+              <div className="cook-risks-container">
+                {currentStep.risks.map((risk, rIdx) => {
+                  const isIrreversible = risk.warning_type === 'irreversible_risk';
+                  return (
                     <div
-                      className="cook-timer-display"
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '2.4rem',
-                        fontWeight: 700,
-                        color: secondsRemaining === 0 ? '#4ade80' : '#ffffff',
-                        lineHeight: 1,
-                        marginTop: '2px',
-                      }}
+                      key={rIdx}
+                      className={`cook-risk-badge cook-risk-badge--${
+                        isIrreversible ? 'irreversible' : 'quality'
+                      }`}
                     >
-                      {formatTimer(secondsRemaining)}
+                      <ShieldAlert
+                        size={18}
+                        className={`cook-risk-icon cook-risk-icon--${
+                          isIrreversible ? 'irreversible' : 'quality'
+                        }`}
+                      />
+                      <div>
+                        <strong className="cook-risk-title">
+                          [{isIrreversible ? 'Risc Ireversibil' : 'Atenție Culinară'}]:
+                        </strong>{' '}
+                        {risk.message}
+                      </div>
                     </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <button
-                    type="button"
-                    style={{
-                      background: isTimerRunning ? '#dc2626' : 'var(--accent-primary)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '0.65rem 1.15rem',
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                    }}
-                    onClick={() => setIsTimerRunning((r) => !r)}
-                  >
-                    {isTimerRunning ? <Pause size={18} /> : <Play size={18} />}
-                    {isTimerRunning ? 'Pauză' : 'Pornește'}
-                  </button>
-
-                  <button
-                    type="button"
-                    style={{
-                      background: '#44403c',
-                      color: '#d6d3d1',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '0.65rem 0.85rem',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => {
-                      setIsTimerRunning(false);
-                      setSecondsRemaining((currentStep.duration_minutes || 0) * 60);
-                    }}
-                    title="Resetează cronometrul"
-                  >
-                    <RotateCcw size={16} />
-                  </button>
-
-                  <button
-                    type="button"
-                    style={{
-                      background: '#44403c',
-                      color: '#d6d3d1',
-                      border: 'none',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '0.65rem 0.85rem',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => setSecondsRemaining((s) => s + 60)}
-                    title="Adaugă 1 minut"
-                  >
-                    +1m
-                  </button>
-                </div>
+                  );
+                })}
               </div>
-            ) : null}
+            )}
+
+            {/* Sfat / Sensory Success Cue Callout Box */}
+            {(currentStep.success_cue || editorial?.chefTip) && (
+              <div className="cook-tip-callout-card">
+                <div className="cook-tip-callout-header">
+                  <Sparkles size={16} className="cook-tip-callout-icon" />
+                  <span className="cook-tip-callout-title">Sfat</span>
+                </div>
+                <p className="cook-tip-callout-text">
+                  {currentStep.success_cue || editorial?.chefTip}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div>Niciun pas definit pentru această rețetă.</div>
@@ -633,62 +510,29 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
 
       {/* Floating Bottom Navigation Bar */}
       {!isCompleted && (
-        <footer
-          style={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            background: '#292524',
-            borderTop: '1px solid #44403c',
-            padding: '0.85rem 1.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            zIndex: 100,
-            boxShadow: '0 -4px 12px rgba(0, 0, 0, 0.4)',
-          }}
-        >
+        <footer className="cook-mode-footer">
           <button
             type="button"
-            style={{
-              background: currentStepIdx === 0 ? '#44403c' : '#57534e',
-              color: currentStepIdx === 0 ? '#78716c' : '#ffffff',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.75rem 1.25rem',
-              fontSize: '1rem',
-              fontWeight: 600,
-              cursor: currentStepIdx === 0 ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-            }}
+            className="cook-nav-btn-prev"
             disabled={currentStepIdx === 0}
             onClick={handlePrev}
           >
-            <ChevronLeft size={20} />
-            Pasul Anterior
+            <ChevronLeft size={18} />
+            <span>← Înapoi</span>
           </button>
 
-          <div style={{ display: 'flex', gap: '0.35rem' }}>
+          <div className="cook-dot-tracker">
             {steps.map((_, i) => (
               <div
                 key={i}
                 onClick={() => setCurrentStepIdx(i)}
-                style={{
-                  width: i === currentStepIdx ? '24px' : '8px',
-                  height: '8px',
-                  borderRadius: '4px',
-                  background:
-                    i === currentStepIdx
-                      ? 'var(--accent-primary)'
-                      : completedSteps[i]
-                      ? '#15803d'
-                      : '#57534e',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
+                className={`cook-dot ${
+                  i === currentStepIdx
+                    ? 'cook-dot--active'
+                    : completedSteps[i]
+                    ? 'cook-dot--completed'
+                    : ''
+                }`}
                 title={`Sari la Pasul ${i + 1}`}
               />
             ))}
@@ -697,48 +541,19 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
           {isLastStep ? (
             <button
               type="button"
-              className="btn-cook-next btn-cook-finish"
-              style={{
-                background: '#15803d',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.75rem 1.5rem',
-                fontSize: '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                boxShadow: '0 4px 12px rgba(21, 128, 61, 0.35)',
-              }}
+              className="btn-cook-next btn-cook-finish cook-nav-btn-finish"
               onClick={handleFinish}
             >
-              <CheckCircle size={20} />
-              Rețetă Finalizată!
+              <CheckCircle size={18} />
+              <span>Finalizează rețeta ✓</span>
             </button>
           ) : (
             <button
               type="button"
-              className="btn-next-step btn-cook-next"
-              style={{
-                background: 'var(--accent-primary)',
-                color: 'white',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.75rem 1.5rem',
-                fontSize: '1rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: '0 4px 12px rgba(154, 52, 18, 0.35)',
-              }}
+              className="btn-next-step btn-cook-next cook-nav-btn-next"
               onClick={handleNext}
             >
-              Următorul Pas
-              <ChevronRight size={20} />
+              <span>Continuă →</span>
             </button>
           )}
         </footer>
