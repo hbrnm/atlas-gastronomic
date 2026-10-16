@@ -33,6 +33,21 @@
 - **Pristine Product Catalogue:** Both `Atlas-gastronomic-repo` and `Atlas-gastronomic` now contain strictly the 12 canonical European recipes with their complete editorial profiles in `data/atlas_gastronomic.db`.
 - **Verification:** 73 passed, 0 failed, 1 skipped. TypeScript: 0 errors.
 
+## UX Simplification for End-Users (2026-10-16)
+- **Intuitive Consumer-First Experience:** App defaults to `'cooking'` mode, transforming the product from an editorial back-office into a warm, delightful cookbook and cooking assistant.
+- **Card Interaction:** Clicking any recipe card opens the full, illustrated recipe spread (`RecipeDetail`) directly.
+- **Administrative Noise Removal:** Hidden "Editează rețeta", "Adaugă Rețetă Nouă", and internal status stamps (`draft`, `editorial_review`) in consumer cooking mode.
+- **Softened Technical Jargon:**
+  - "Punct Critic HACCP" → "Temperatură Critică de Siguranță"
+  - "Risc Ireversibil" → "Etapă Decisivă (Atenție Sporită)"
+  - "Indiciu Senzorial de Finalizare" → "Cum știi că este gata"
+  - "Temperatură Țintă" → "Ghid de Temperatură"
+  - "Ingrediente utilizate în acest pas:" → "Ingrediente pentru acest pas:"
+  - "Ramură Independentă" → "Pregătire în paralel"
+  - "Control Termic Critic" → "Temperatură Recomandată"
+- **Card Hierarchy:** Primary action is "Vezi Rețeta", with "Gătește" as secondary quick action.
+- **Verification:** All 73 automated tests passing, 0 errors in typecheck, production build verified.
+
 ## Domain Constraints Preserved
 - `standards/v1.0.0/` schemas 100% frozen.
 - Recipe Core V1 domain invariants, DAG rules, and thermal constraints 100% intact.
