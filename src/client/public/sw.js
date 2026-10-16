@@ -1,10 +1,22 @@
 // Atlas Gastronomic — Service Worker for Offline Cooking Support
-const CACHE_NAME = 'atlas-gastronomic-v1';
+const CACHE_NAME = 'atlas-gastronomic-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/images/tagliatelle-ragu.jpg',
+  '/images/risotto-milanese.jpg',
+  '/images/boeuf-bourguignon.jpg',
+  '/images/souffle-fromage.jpg',
+  '/images/ciorba-radauteana.jpg',
+  '/images/ratatouille-nicoise.jpg',
+  '/images/coq-au-vin.jpg',
+  '/images/tiramisu-trevisano.jpg',
+  '/images/salata-vinete.jpg',
+  '/images/shakshuka-maghreb.jpg',
+  '/images/guacamole-mexicano.jpg',
+  '/images/sarmale.jpg',
 ];
 
 self.addEventListener('install', (event) => {
@@ -34,8 +46,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle recipe API requests: Network first, fallback to cache
-  if (url.pathname.startsWith('/api/recipes')) {
+  // Handle recipe and editorial API requests: Network first, fallback to cache
+  if (url.pathname.startsWith('/api/recipes') || url.pathname.startsWith('/api/editorial')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -48,6 +60,23 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return caches.match(request);
         })
+    );
+    return;
+  }
+
+  // Handle static images: Cache first, fallback to network
+  if (url.pathname.startsWith('/images/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        });
+      })
     );
     return;
   }

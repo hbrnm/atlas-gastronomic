@@ -452,6 +452,33 @@ export class RecipeRepository {
     return result;
   }
 
+  getEditorialAudit(recipeId: string): RecipeEditorialAuditRecord[] {
+    const recipeRow = this.db.prepare('SELECT id, recipe_id as slug FROM recipes WHERE id = ? OR recipe_id = ?').get(recipeId, recipeId) as any;
+    const lookupId = recipeRow ? recipeRow.id : recipeId;
+    const lookupSlug = recipeRow ? recipeRow.slug : recipeId;
+
+    const rows = this.db.prepare(`
+      SELECT * FROM recipe_editorial_audit 
+      WHERE recipe_id = ? OR recipe_id = ? OR recipe_slug = ?
+      ORDER BY created_at DESC
+    `).all(lookupId, lookupSlug, lookupSlug) as any[];
+
+    return rows.map((r) => ({
+      id: r.id,
+      recipe_id: r.recipe_id,
+      recipe_slug: r.recipe_slug || null,
+      recipe_title: r.recipe_title || null,
+      profile_version: r.profile_version,
+      from_status: r.from_status as EditorialStatus,
+      to_status: r.to_status as EditorialStatus,
+      actor_id: r.actor_id,
+      actor_role: r.actor_role as any,
+      changed_fields: r.changed_fields_json ? JSON.parse(r.changed_fields_json) : [],
+      rationale: r.rationale || null,
+      created_at: r.created_at,
+    }));
+  }
+
   saveEditorial(
     recipeId: string,
     profileData: Partial<RecipeEditorialProfile>,

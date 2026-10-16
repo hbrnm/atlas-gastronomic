@@ -520,6 +520,17 @@ export function createExpressApp(repo: RecipeRepository) {
     }
   });
 
+  // GET /api/recipes/:id/editorial/audit — Get immutable audit history for recipe editorial profile
+  app.get('/api/recipes/:id/editorial/audit', requireReadAuth, (req, res) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const history = repo.getEditorialAudit(id);
+      res.json({ recipe_id: id, count: history.length, audit_history: history });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Eroare la obținerea istoricului de audit', details: err.message });
+    }
+  });
+
   // DELETE /api/recipes/:id — Delete recipe
   app.delete('/api/recipes/:id', requireEditorialAuth, (req, res) => {
     try {

@@ -1,5 +1,5 @@
-import React from 'react';
-import { BookOpen, Plus, ChefHat, Edit3 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Plus, ChefHat, Edit3, WifiOff } from 'lucide-react';
 
 interface HeaderProps {
   currentView: 'list' | 'detail' | 'cook' | 'editor';
@@ -18,6 +18,18 @@ export const Header: React.FC<HeaderProps> = ({
   onNewRecipe,
   activeRecipeTitle,
 }) => {
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   return (
     <header className="app-header">
       {/* 1. Publication Dateline Ribbon */}
@@ -28,11 +40,20 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="masthead-issue">VOL. I • TOAMNĂ 2026</span>
         </div>
         <div className="masthead-edition-cities">
-          <span>Bologna</span>
-          <span>Milano</span>
-          <span>Dijon</span>
-          <span>Paris</span>
-          <span>București</span>
+          {!isOnline ? (
+            <span style={{ color: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+              <WifiOff size={11} />
+              Mod Bucătărie Offline (Cache Activ)
+            </span>
+          ) : (
+            <>
+              <span>Bologna</span>
+              <span>Milano</span>
+              <span>Dijon</span>
+              <span>Paris</span>
+              <span>București</span>
+            </>
+          )}
         </div>
       </div>
 

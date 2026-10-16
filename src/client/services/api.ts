@@ -1,6 +1,6 @@
 import { Recipe, RecipeValidationResult } from '../../shared/types.js';
 import { RecipeListItem } from '../../server/repository.js';
-import { RecipeEditorialProfile } from '../../shared/editorial-types.js';
+import { RecipeEditorialProfile, RecipeEditorialAuditRecord } from '../../shared/editorial-types.js';
 
 const API_BASE = '/api';
 const ACCESS_KEY_STORAGE_KEY = 'atlas_access_key';
@@ -206,4 +206,16 @@ export async function saveRecipeEditorialApi(
   }
 
   return res.json();
+}
+
+export async function fetchRecipeEditorialAuditApi(id: string): Promise<RecipeEditorialAuditRecord[]> {
+  const res = await fetch(`${API_BASE}/recipes/${id}/editorial/audit`, {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || 'Eroare la obținerea istoricului de audit.');
+  }
+  const data = await res.json();
+  return data.audit_history || [];
 }

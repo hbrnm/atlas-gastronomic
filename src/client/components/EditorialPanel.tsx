@@ -1,39 +1,156 @@
-import React from 'react';
-import { RecipeEditorialProfile, EditorialStatus, ImageRightsStatus, ImageLicense } from '../../shared/editorial-types.js';
-import { BookOpen, Image as ImageIcon, AlertTriangle, Sparkles, Wine, Quote, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { RecipeEditorialProfile, RecipeEditorialAuditRecord, EditorialStatus, ImageRightsStatus, ImageLicense } from '../../shared/editorial-types.js';
+import { fetchRecipeEditorialAuditApi } from '../services/api.js';
+import { BookOpen, Image as ImageIcon, AlertTriangle, Sparkles, Wine, Quote, CheckCircle2, History, UserCheck } from 'lucide-react';
 
 interface EditorialPanelProps {
   editorial: Partial<RecipeEditorialProfile> | undefined;
   onChange: (patch: Partial<RecipeEditorialProfile>) => void;
   recipeTitle: string;
+  recipeId?: string;
 }
 
-const CANONICAL_IMAGES = [
-  { url: '/images/tagliatelle-ragu.jpg', label: 'Tagliatelle al Ragù' },
-  { url: '/images/risotto-milanese.jpg', label: 'Risotto alla Milanese' },
-  { url: '/images/boeuf-bourguignon.jpg', label: 'Boeuf Bourguignon' },
-  { url: '/images/souffle-fromage.jpg', label: 'Soufflé au Fromage' },
-  { url: '/images/ciorba-radauteana.jpg', label: 'Ciorbă Rădăuțeană' },
-  { url: '/images/ratatouille-nicoise.jpg', label: 'Ratatouille Niçoise' },
-  { url: '/images/coq-au-vin.jpg', label: 'Coq au Vin' },
-  { url: '/images/tiramisu-trevisano.jpg', label: 'Tiramisù Trevizan' },
-  { url: '/images/salata-vinete.jpg', label: 'Salată de Vinete' },
-  { url: '/images/shakshuka-maghreb.jpg', label: 'Shakshuka Maghreb' },
-  { url: '/images/guacamole-mexicano.jpg', label: 'Guacamole Mexican' },
-  { url: '/images/sarmale.jpg', label: 'Sarmale Tradiționale' },
+const CANONICAL_IMAGES: Array<{
+  url: string;
+  label: string;
+  author: string;
+  license: ImageLicense;
+  alt: string;
+  caption: string;
+}> = [
+  {
+    url: '/images/tagliatelle-ragu.jpg',
+    label: 'Tagliatelle al Ragù',
+    author: 'Arhiva Gastronomică Italiană',
+    license: 'CC-BY-SA-4.0',
+    alt: 'Tagliatelle proaspete cu ragù bolognese tradițional',
+    caption: 'Tagliatelle al Ragù alla Bolognese conform rețetei originale depuse la Camera de Comerț din Bologna (1982)',
+  },
+  {
+    url: '/images/risotto-milanese.jpg',
+    label: 'Risotto alla Milanese',
+    author: 'Arhiva Gastronomică Lombardă',
+    license: 'Unsplash-License',
+    alt: 'Risotto cremos cu șofran și măduvă de vită all\'onda',
+    caption: 'Risotto alla Milanese pregătit all\'onda cu șofran pur și măduvă de vită',
+  },
+  {
+    url: '/images/boeuf-bourguignon.jpg',
+    label: 'Boeuf Bourguignon',
+    author: 'Studio Haute Cuisine',
+    license: 'Unsplash-License',
+    alt: 'Carne de vită rumenită și înăbușită lent în vin roșu de Burgundia',
+    caption: 'Boeuf Bourguignon tradițional cu ciuperci brune și ceapă perlată glasată',
+  },
+  {
+    url: '/images/souffle-fromage.jpg',
+    label: 'Soufflé au Fromage',
+    author: 'Studio Patiserie Paris',
+    license: 'Unsplash-License',
+    alt: 'Sufleu cald de brânză Comté crescut deasupra ramekinului',
+    caption: 'Soufflé Chaud au Fromage cu brânză Comté AOP maturat',
+  },
+  {
+    url: '/images/ciorba-radauteana.jpg',
+    label: 'Ciorbă Rădăuțeană',
+    author: 'Unsplash Food Collection',
+    license: 'Unsplash-License',
+    alt: 'Ciorbă rădăuțeană catifelată de pui cu smântână și mujdei',
+    caption: 'Ciorbă Rădăuțeană bucovineană cu pui fraged și dressing bogat de smântână',
+  },
+  {
+    url: '/images/ratatouille-nicoise.jpg',
+    label: 'Ratatouille Niçoise',
+    author: 'Unsplash Food Collection',
+    license: 'Unsplash-License',
+    alt: 'Legume de vară provensale gătite lent în ulei de măsline',
+    caption: 'Ratatouille Tradițională Niçoise cu vinete, dovlecei și ierburi de Provence',
+  },
+  {
+    url: '/images/coq-au-vin.jpg',
+    label: 'Coq au Vin',
+    author: 'Unsplash Food Collection',
+    license: 'Unsplash-License',
+    alt: 'Pui rumenit înăbușit în sos bogat de vin roșu și ciuperci',
+    caption: 'Coq au Vin clasic bourguignon servit cu ciuperci sote și verdeață',
+  },
+  {
+    url: '/images/tiramisu-trevisano.jpg',
+    label: 'Tiramisù Trevizan',
+    author: 'Unsplash Food Collection',
+    license: 'Unsplash-License',
+    alt: 'Tiramisù clasic stratificat cu cremă fină de mascarpone și pișcoturi însiroparate',
+    caption: 'Tiramisù clasic originar din Treviso pudrat cu cacao neagră amară',
+  },
+  {
+    url: '/images/salata-vinete.jpg',
+    label: 'Salată de Vinete',
+    author: 'Unsplash Food Collection',
+    license: 'Unsplash-License',
+    alt: 'Salată de vinete coapte pe flacără deschisă cu ulei și ceapă tocată fin',
+    caption: 'Salată Tradițională de Vinete coapte pe jar, spumate cu ulei de floarea-soarelui',
+  },
+  {
+    url: '/images/shakshuka-maghreb.jpg',
+    label: 'Shakshuka Maghreb',
+    author: 'Unsplash Food Collection',
+    license: 'Unsplash-License',
+    alt: 'Ouă poșate în sos aromat de roșii, ardei și chimion în tigaie de fontă',
+    caption: 'Shakshuka tradițională maghrebiană cu ouă poșate în sos picant de roșii',
+  },
+  {
+    url: '/images/guacamole-mexicano.jpg',
+    label: 'Guacamole Mexican',
+    author: 'Zoshua Colah',
+    license: 'Unsplash-License',
+    alt: 'Avocado pisat în molcajete cu coriandru, lime și ardei serrano',
+    caption: 'Guacamole auténtico tradițional preparat proaspăt în mojar de piatră vulcanică',
+  },
+  {
+    url: '/images/sarmale.jpg',
+    label: 'Sarmale Tradiționale',
+    author: 'Colecția Etnografică Gastronomică',
+    license: 'Proprietary-Atlas',
+    alt: 'Sarmale tradiționale în foi de varză murată fierte lent la oală de lut',
+    caption: 'Sarmale românești în foi de varză acră servite cu mămăligă caldă și smântână',
+  },
 ];
 
 export const EditorialPanel: React.FC<EditorialPanelProps> = ({
   editorial = {},
   onChange,
   recipeTitle,
+  recipeId,
 }) => {
   const status: EditorialStatus = editorial.editorial_status || 'draft';
   const rightsStatus: ImageRightsStatus = editorial.image_rights_status || 'unverified';
   const isApproved = status === 'approved';
 
+  const [auditHistory, setAuditHistory] = useState<RecipeEditorialAuditRecord[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState(false);
+
+  useEffect(() => {
+    if (recipeId) {
+      setIsLoadingAudit(true);
+      fetchRecipeEditorialAuditApi(recipeId)
+        .then(setAuditHistory)
+        .catch((err) => console.warn('Nu s-a putut încărca istoricul de audit:', err))
+        .finally(() => setIsLoadingAudit(false));
+    }
+  }, [recipeId, editorial.profile_version, editorial.editorial_status]);
+
   const handleFieldChange = (field: keyof RecipeEditorialProfile, value: any) => {
     onChange({ [field]: value });
+  };
+
+  const handleSelectCanonicalImage = (img: typeof CANONICAL_IMAGES[0]) => {
+    onChange({
+      image_url: img.url,
+      image_alt: editorial.image_alt || img.alt,
+      image_caption: editorial.image_caption || img.caption,
+      image_author: editorial.image_author || img.author,
+      image_license: editorial.image_license || img.license,
+    });
   };
 
   return (
@@ -216,7 +333,7 @@ export const EditorialPanel: React.FC<EditorialPanelProps> = ({
                       border: editorial.image_url === img.url ? '1px solid var(--color-accent-gold)' : '1px solid var(--border-color)',
                       background: editorial.image_url === img.url ? 'rgba(217, 119, 6, 0.1)' : 'transparent',
                     }}
-                    onClick={() => handleFieldChange('image_url', img.url)}
+                    onClick={() => handleSelectCanonicalImage(img)}
                   >
                     {img.label}
                   </button>
@@ -325,6 +442,99 @@ export const EditorialPanel: React.FC<EditorialPanelProps> = ({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* 4. Jurnal de Audit & Istoric Tranzacții (Imutabil) */}
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.05rem' }}>
+            <History size={16} style={{ color: 'var(--color-accent-gold)' }} />
+            Jurnal de Audit & Istoric Modificări (Imutabil)
+          </h4>
+          <span className="badge badge-draft" style={{ fontSize: '0.75rem' }}>
+            {auditHistory.length} înregistrări
+          </span>
+        </div>
+
+        <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: 'var(--text-subtle)' }}>
+          Toate tranzițiile de stare și modificările editoriale sunt consemnate permanent în SQLite. Integritatea este garantată prin triggere native ale motorului bazei de date.
+        </p>
+
+        {isLoadingAudit ? (
+          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-subtle)', fontSize: '0.875rem' }}>
+            Se încarcă istoricul de audit...
+          </div>
+        ) : auditHistory.length === 0 ? (
+          <div style={{ padding: '1rem', background: 'var(--color-bg-secondary)', borderRadius: '6px', fontSize: '0.85rem', color: 'var(--text-subtle)', textAlign: 'center' }}>
+            Nicio înregistrare de audit consemnată încă pentru această rețetă.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {auditHistory.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.35rem',
+                  padding: '0.75rem 1rem',
+                  background: 'var(--color-bg-secondary)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-color)' }}>
+                      v{item.profile_version}
+                    </span>
+                    <span style={{ color: 'var(--text-subtle)' }}>•</span>
+                    <span className="badge badge-draft" style={{ fontSize: '0.7rem' }}>
+                      {item.from_status} ➔ {item.to_status}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+                    {new Date(item.created_at).toLocaleString('ro-RO')}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                  <UserCheck size={14} />
+                  <span>
+                    Actor: <strong>{item.actor_id}</strong> (Rol: <code>{item.actor_role}</code>)
+                  </span>
+                </div>
+
+                {item.rationale && (
+                  <div style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-color)' }}>
+                    Motiv: „{item.rationale}”
+                  </div>
+                )}
+
+                {item.changed_fields && item.changed_fields.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.25rem' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)', alignSelf: 'center' }}>Câmpuri modificate:</span>
+                    {item.changed_fields.map((f: string) => (
+                      <span
+                        key={f}
+                        style={{
+                          fontSize: '0.7rem',
+                          padding: '1px 5px',
+                          background: 'rgba(0,0,0,0.05)',
+                          borderRadius: '3px',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {f}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

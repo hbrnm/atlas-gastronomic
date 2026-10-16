@@ -127,4 +127,18 @@ test('Phase 009 Express Editorial API Contract & Security Tests', async (t) => {
     const err = await res.json();
     assert.ok(err.error.includes('FORBIDDEN'));
   });
+
+  await t.test('7. GET /api/recipes/:id/editorial/audit returns immutable audit history', async () => {
+    const res = await fetch(`${baseUrl}/api/recipes/${recipeId}/editorial/audit`);
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.recipe_id, recipeId);
+    assert.ok(data.count > 0, 'Audit history must contain records from earlier updates');
+    assert.ok(Array.isArray(data.audit_history));
+    const firstLog = data.audit_history[0];
+    assert.ok(firstLog.id);
+    assert.ok(firstLog.from_status);
+    assert.ok(firstLog.to_status);
+    assert.ok(firstLog.created_at);
+  });
 });

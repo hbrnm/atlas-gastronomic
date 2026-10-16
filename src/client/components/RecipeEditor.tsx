@@ -289,6 +289,7 @@ export const RecipeEditor: React.FC<RecipeEditorProps> = ({
           editorial={recipe.editorial || undefined}
           onChange={handleEditorialUpdate}
           recipeTitle={recipe.title}
+          recipeId={recipe.id}
         />
       )}
 
