@@ -408,18 +408,41 @@ export function initDatabase(dbPath?: string, seedRecipes?: Recipe[]): DatabaseS
     }
   } else {
     // Product database (atlas_gastronomic.db):
+    // Purge test / scratch recipes from the product catalogue
+    purgeTestRecipes(db);
+
     const countRow = db.prepare('SELECT COUNT(*) as count FROM recipes').get() as { count: number };
     if (countRow.count === 0) {
-      seedDatabase(db);
+      for (const recipe of COMPLETE_CATALOGUE) {
+        insertRecipeIntoDb(db, recipe);
+      }
+    } else {
+      // Synchronize all 12 canonical recipes into the product database
+      syncCanonicalRecipes(db);
     }
-    // Synchronize all 12 canonical recipes into the product database
-    syncCanonicalRecipes(db);
   }
 
   // Seed editorial profiles for any canonical recipes present in the database
   seedEditorialProfiles(db);
 
   return db;
+}
+
+export function purgeTestRecipes(db: DatabaseSync): void {
+  const canonicalIds = new Set(COMPLETE_CATALOGUE.map((r) => r.id));
+  const canonicalRecipeIds = new Set(COMPLETE_CATALOGUE.map((r) => r.recipe_id));
+
+  const rows = db.prepare('SELECT id, recipe_id, title FROM recipes').all() as { id: string; recipe_id: string; title: string }[];
+  const deleteStmt = db.prepare('DELETE FROM recipes WHERE id = ?');
+
+  for (const r of rows) {
+    const isCanonical = canonicalIds.has(r.id) || canonicalRecipeIds.has(r.recipe_id);
+    const isLegacySeed = r.id === 'rec_supa_legume_001' || r.id === 'rec_mamaliga_002';
+    const isScratchTest = r.id.startsWith('rec_mv') || r.title.toLowerCase().includes('persisten');
+    if (!isCanonical || isLegacySeed || isScratchTest) {
+      deleteStmt.run(r.id);
+    }
+  }
 }
 
 export function syncCanonicalRecipes(db: DatabaseSync): void {

@@ -40,12 +40,6 @@ test('Product Acceptance Test: All 4 Canonical Recipes in Real Product Experienc
 
   const TEST_PORT = 3335;
   const serverInstance = await startServer(TEST_PORT, testDbFile, CANONICAL_RECIPES);
-  t.after(async () => {
-    await serverInstance.close();
-    if (fs.existsSync(testDbFile)) {
-      try { fs.unlinkSync(testDbFile); } catch {}
-    }
-  });
 
   assert.ok(fs.existsSync(CHROME_PATH), `Chrome executable not found at ${CHROME_PATH}`);
 
@@ -54,8 +48,15 @@ test('Product Acceptance Test: All 4 Canonical Recipes in Real Product Experienc
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1280,900'],
   });
+
   t.after(async () => {
-    await browser.close();
+    try { await browser.close(); } catch {}
+    try { await serverInstance.close(); } catch {}
+    [testDbFile, `${testDbFile}.v1.bak`, `${testDbFile}-wal`, `${testDbFile}-shm`].forEach((f) => {
+      if (fs.existsSync(f)) {
+        try { fs.unlinkSync(f); } catch {}
+      }
+    });
   });
 
   const page: Page = await browser.newPage();

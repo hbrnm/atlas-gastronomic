@@ -22,13 +22,24 @@ test('Production Deployment & Private Access Lifecycle: Verification on Disk wit
   process.env.ATLAS_EDITORIAL_KEY = EDITORIAL_KEY;
   process.env.ATLAS_REQUIRE_AUTH = 'true';
 
-  t.after(() => {
+  let restartedServer: any = null;
+  let browser: Browser | null = null;
+
+  t.after(async () => {
     delete process.env.ATLAS_ACCESS_KEY;
     delete process.env.ATLAS_EDITORIAL_KEY;
     delete process.env.ATLAS_REQUIRE_AUTH;
-    if (fs.existsSync(testDbFile)) {
-      try { fs.unlinkSync(testDbFile); } catch {}
+    if (browser) {
+      try { await browser.close(); } catch {}
     }
+    if (restartedServer) {
+      try { await restartedServer.close(); } catch {}
+    }
+    [testDbFile, `${testDbFile}.v1.bak`, `${testDbFile}-wal`, `${testDbFile}-shm`].forEach((f) => {
+      if (fs.existsSync(f)) {
+        try { fs.unlinkSync(f); } catch {}
+      }
+    });
   });
 
   const PORT_1 = 3340;
@@ -114,10 +125,7 @@ test('Production Deployment & Private Access Lifecycle: Verification on Disk wit
 
   // Restart server on a different port using the exact same SQLite database file on disk
   const PORT_2 = 3341;
-  const restartedServer = await startServer(PORT_2, testDbFile, COMPLETE_CATALOGUE);
-  t.after(async () => {
-    await restartedServer.close();
-  });
+  restartedServer = await startServer(PORT_2, testDbFile, COMPLETE_CATALOGUE);
 
   const restartedBaseUrl = `http://localhost:${PORT_2}`;
 
@@ -137,13 +145,10 @@ test('Production Deployment & Private Access Lifecycle: Verification on Disk wit
   // 3. REAL BROWSER ACCEPTANCE: PRIVATE ACCESS SCREEN UNLOCK & COOK MODE FLOW
   // =========================================================================
   console.log('--- 3. BROWSER VERIFICATION: PRIVATE ACCESS GATE & USER FLOW ---');
-  const browser: Browser = await puppeteer.launch({
+  browser = await puppeteer.launch({
     executablePath: CHROME_PATH,
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1280,900'],
-  });
-  t.after(async () => {
-    await browser.close();
   });
 
   const page = await browser.newPage();

@@ -79,6 +79,9 @@ export async function startServer(customPort?: number, customDbPath?: string, se
         await viteInstance.close();
       }
       await new Promise<void>((resolve) => server.close(() => resolve()));
+      try {
+        db.close();
+      } catch {}
     },
   };
 }

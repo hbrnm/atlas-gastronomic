@@ -40,12 +40,6 @@ test('Browser Acceptance Test: Complete Atlas Gastronomic Recipe Core V1 Scenari
 
   const TEST_PORT = 3333;
   const serverInstance = await startServer(TEST_PORT, testDbFile);
-  t.after(async () => {
-    await serverInstance.close();
-    if (fs.existsSync(testDbFile)) {
-      try { fs.unlinkSync(testDbFile); } catch {}
-    }
-  });
 
   // Verify Chrome exists
   assert.ok(fs.existsSync(CHROME_PATH), `Chrome executable not found at ${CHROME_PATH}`);
@@ -56,8 +50,15 @@ test('Browser Acceptance Test: Complete Atlas Gastronomic Recipe Core V1 Scenari
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1280,900'],
   });
+
   t.after(async () => {
-    await browser.close();
+    try { await browser.close(); } catch {}
+    try { await serverInstance.close(); } catch {}
+    [testDbFile, `${testDbFile}.v1.bak`, `${testDbFile}-wal`, `${testDbFile}-shm`].forEach((f) => {
+      if (fs.existsSync(f)) {
+        try { fs.unlinkSync(f); } catch {}
+      }
+    });
   });
 
   const page: Page = await browser.newPage();

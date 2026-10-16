@@ -40,12 +40,6 @@ test('Phase 004 Acceptance Test: User-Facing Recipe App & Cook Mode Experience',
 
   const TEST_PORT = 3337;
   const serverInstance = await startServer(TEST_PORT, testDbFile, COMPLETE_CATALOGUE);
-  t.after(async () => {
-    await serverInstance.close();
-    if (fs.existsSync(testDbFile)) {
-      try { fs.unlinkSync(testDbFile); } catch {}
-    }
-  });
 
   assert.ok(fs.existsSync(CHROME_PATH), `Chrome executable not found at ${CHROME_PATH}`);
 
@@ -54,8 +48,15 @@ test('Phase 004 Acceptance Test: User-Facing Recipe App & Cook Mode Experience',
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1280,900'],
   });
+
   t.after(async () => {
-    await browser.close();
+    try { await browser.close(); } catch {}
+    try { await serverInstance.close(); } catch {}
+    [testDbFile, `${testDbFile}.v1.bak`, `${testDbFile}-wal`, `${testDbFile}-shm`].forEach((f) => {
+      if (fs.existsSync(f)) {
+        try { fs.unlinkSync(f); } catch {}
+      }
+    });
   });
 
   const page = await browser.newPage();

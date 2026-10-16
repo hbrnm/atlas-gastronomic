@@ -26,8 +26,16 @@
    - Automated regression test suite: **73 passed, 0 failed, 1 skipped (environmental)**.
    - Workspace parity: Both primary (`Atlas-gastronomic-repo`) and mirror (`Atlas-gastronomic`) 100% synchronized.
 
+## Database Sanitization & Test Recipe Purge (2026-10-16)
+- **Purged Obsolete Test Recipes:** Completely removed non-canonical persistence test recipes (`rec_supa_legume_001`, `rec_mamaliga_002`, `rec_mv6otadk`, `rec_mv8a5r4a_ecel`) from application databases.
+- **Removed Orphaned Test DB Artifacts:** Purged lingering test database files from `data/` (`atlas_browser_test.db`, `atlas_canonical_browser_test.db`, `atlas_phase004_cookmode_test.db`, `atlas_prod_deploy_restart_test.db`, `screenshots_*.db`, `atlas_test_*.db`, `.bak` files).
+- **Automated Lifecycle Cleanup in Tests:** Added robust teardown hooks in `browser-acceptance.test.ts`, `canonical-product-acceptance.test.ts`, `production-deployment-verification.test.ts`, and `user-cook-mode-acceptance.test.ts` to close database handles and delete test SQLite artifacts immediately upon test completion.
+- **Pristine Product Catalogue:** Both `Atlas-gastronomic-repo` and `Atlas-gastronomic` now contain strictly the 12 canonical European recipes with their complete editorial profiles in `data/atlas_gastronomic.db`.
+- **Verification:** 73 passed, 0 failed, 1 skipped. TypeScript: 0 errors.
+
 ## Domain Constraints Preserved
 - `standards/v1.0.0/` schemas 100% frozen.
 - Recipe Core V1 domain invariants, DAG rules, and thermal constraints 100% intact.
 - Human approval gate: All profiles remain human-approved only.
+
 
