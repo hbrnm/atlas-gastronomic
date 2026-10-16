@@ -46,18 +46,38 @@ function getInitialServingsMap(): Record<string, number> {
   return {};
 }
 
+function getInitialAppMode(): 'cooking' | 'editorial' {
+  try {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlMode = params.get('mode');
+      if (urlMode === 'editorial' || urlMode === 'cooking') return urlMode;
+      const stored = localStorage.getItem('atlas_app_mode');
+      if (stored === 'editorial' || stored === 'cooking') return stored;
+    }
+  } catch {}
+  return 'cooking';
+}
+
 export const App: React.FC = () => {
   const [initialSession] = useState(getInitialSession);
   const [recipes, setRecipes] = useState<RecipeListItem[]>([]);
   const [currentRecipe, setCurrentRecipe] = useState<Recipe | null>(null);
   const [currentView, setCurrentView] = useState<'list' | 'detail' | 'cook' | 'editor'>(initialSession.view);
-  const [appMode, setAppMode] = useState<'cooking' | 'editorial'>('editorial');
+  const [appMode, setAppMode] = useState<'cooking' | 'editorial'>(getInitialAppMode);
   const [isLoading, setIsLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Recipe-specific servings map: { [recipeId: string]: number } with persistence
   const [recipeServingsMap, setRecipeServingsMap] = useState<Record<string, number>>(getInitialServingsMap);
+
+  const handleToggleMode = (mode: 'cooking' | 'editorial') => {
+    setAppMode(mode);
+    try {
+      localStorage.setItem('atlas_app_mode', mode);
+    } catch {}
+  };
 
   const handleUpdateRecipeServings = (recipeId: string, servings: number) => {
     setRecipeServingsMap((prev) => {
@@ -293,7 +313,7 @@ export const App: React.FC = () => {
         <Header
           currentView={currentView}
           appMode={appMode}
-          onToggleMode={(mode) => setAppMode(mode)}
+          onToggleMode={handleToggleMode}
           onNavigateToList={handleNavigateToList}
           onNewRecipe={handleCreateNewRecipe}
           activeRecipeTitle={currentRecipe?.title}
@@ -395,6 +415,7 @@ export const App: React.FC = () => {
           ) : currentView === 'detail' && currentRecipe ? (
             <RecipeDetail
               recipe={currentRecipe}
+              appMode={appMode}
               servings={recipeServingsMap[currentRecipe.id] ?? currentRecipe.yield?.quantity ?? 4}
               onServingsChange={(s) => handleUpdateRecipeServings(currentRecipe.id, s)}
               onBack={handleNavigateToList}

@@ -20,6 +20,7 @@ interface RecipeDetailProps {
   onBack: () => void;
   onStartCookMode: (servings?: number) => void;
   onOpenEditor: () => void;
+  appMode?: 'cooking' | 'editorial';
 }
 
 function getRiskBadgeClass(type: StepRiskType): string {
@@ -40,13 +41,13 @@ function getRiskBadgeClass(type: StepRiskType): string {
 function getRiskLabel(type: StepRiskType): string {
   switch (type) {
     case 'culinary_quality':
-      return 'Atenție Culinară';
+      return 'Secretul Texturii & Gustului';
     case 'irreversible_risk':
-      return 'Risc Ireversibil';
+      return 'Etapă Decisivă';
     case 'food_safety':
-      return 'Siguranță Alimentară';
+      return 'Siguranță & Păstrare';
     case 'haccp_ccp':
-      return 'Punct Critic HACCP';
+      return 'Temperatură Critică de Siguranță';
     default:
       return type;
   }
@@ -59,6 +60,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
   onBack,
   onStartCookMode,
   onOpenEditor,
+  appMode = 'cooking',
 }) => {
   const baseYield = recipe.yield?.quantity || 4;
   const [internalServings, setInternalServings] = useState<number>(controlledServings ?? baseYield);
@@ -151,17 +153,19 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
           <span>Înapoi la catalog</span>
         </button>
 
-        <div className="detail-top-meta-links">
-          <button
-            type="button"
-            className="btn-link-action"
-            onClick={onOpenEditor}
-            title="Deschide în redactor"
-          >
-            <Edit3 size={14} />
-            <span>Editează rețeta</span>
-          </button>
-        </div>
+        {appMode === 'editorial' && (
+          <div className="detail-top-meta-links">
+            <button
+              type="button"
+              className="btn-link-action"
+              onClick={onOpenEditor}
+              title="Deschide în redactor"
+            >
+              <Edit3 size={14} />
+              <span>Editează rețeta</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 2. SIDE-BY-SIDE HERO COMPOSITION (Approved Editorial Reference) */}
@@ -468,7 +472,7 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                         {step.allocations && step.allocations.length > 0 && (
                           <div className="step-allocations-panel">
                             <span className="step-allocations-title">
-                              Ingrediente utilizate în acest pas:
+                              Ingrediente pentru acest pas:
                             </span>
                             <div className="step-allocations-tags">
                               {step.allocations.map((a, i) => {
@@ -495,13 +499,13 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
                           <div className="step-cues-panel">
                             {step.success_cue && (
                               <div className="cue-item">
-                                <span className="cue-label">Indiciu Senzorial de Finalizare</span>
+                                <span className="cue-label">Cum știi că este gata</span>
                                 <span className="cue-value">{step.success_cue}</span>
                               </div>
                             )}
                             {step.thermal_constraints && step.thermal_constraints.length > 0 && (
                               <div className="cue-item">
-                                <span className="cue-label">Temperatură Țintă</span>
+                                <span className="cue-label">Ghid de Temperatură</span>
                                 <span className="cue-value">
                                   {step.thermal_constraints
                                     .map(

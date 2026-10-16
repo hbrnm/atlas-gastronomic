@@ -424,8 +424,12 @@ export const RecipeList: React.FC<RecipeListProps> = ({
       {/* 5. Complete Canonical Catalog */}
       <div id="catalog-section" className="catalog-section-header">
         <div className="catalog-heading-wrap">
-          <h2>Catalogul Canonic</h2>
-          <p>Selecție de preparate iconice cu rețetar complet și instrucțiuni detaliate</p>
+          <h2>{appMode === 'editorial' ? 'Catalogul Canonic' : 'Catalog de Rețete'}</h2>
+          <p>
+            {appMode === 'editorial'
+              ? 'Selecție de preparate iconice cu rețetar complet și instrucțiuni detaliate'
+              : 'Preparate iconice explicate pas cu pas, cu ingrediente calculate precis și tehnici culinare'}
+          </p>
         </div>
 
         {appMode === 'editorial' && (
@@ -555,7 +559,7 @@ export const RecipeList: React.FC<RecipeListProps> = ({
                       <span className="kicker-separator">·</span>
                       <span className="card-tradition">{r.culinary_tradition || 'Tradiție Canonică'}</span>
                     </span>
-                    {getStatusBadge(r.status)}
+                    {appMode === 'editorial' && getStatusBadge(r.status)}
                   </div>
 
                   <h2 className="card-title">{r.title}</h2>
@@ -586,7 +590,7 @@ export const RecipeList: React.FC<RecipeListProps> = ({
 
                     <div className="card-meta-item">
                       <Layers size={14} />
-                      <span>{r.ingredients_count} ingr.</span>
+                      <span>{r.ingredients_count} ingrediente</span>
                     </div>
                   </div>
 
@@ -594,7 +598,17 @@ export const RecipeList: React.FC<RecipeListProps> = ({
                   <div className="card-actions">
                     <button
                       type="button"
-                      className="btn btn-primary btn-sm btn-card-cook"
+                      className={`btn btn-sm btn-card-detail ${appMode === 'cooking' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenDetailView(r.id);
+                      }}
+                    >
+                      Vezi Rețeta
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn btn-sm btn-card-cook ${appMode === 'cooking' ? 'btn-secondary' : 'btn-primary'}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenCookView(r.id);
@@ -602,16 +616,6 @@ export const RecipeList: React.FC<RecipeListProps> = ({
                     >
                       <ChefHat size={14} />
                       Gătește
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm btn-card-detail"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenDetailView(r.id);
-                      }}
-                    >
-                      Vezi Rețeta
                     </button>
                   </div>
                 </div>

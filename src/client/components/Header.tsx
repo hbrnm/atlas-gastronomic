@@ -35,9 +35,13 @@ export const Header: React.FC<HeaderProps> = ({
       {/* 1. Publication Dateline Ribbon */}
       <div className="masthead-edition-bar">
         <div className="masthead-edition-left">
-          <span className="masthead-tag">REVISTĂ & COMPENDIU CULINAR DE PRECIZIE</span>
+          <span className="masthead-tag">
+            {appMode === 'editorial' ? 'REVISTĂ & COMPENDIU CULINAR DE PRECIZIE' : 'GHID GASTRONOMIC EUROPEAN'}
+          </span>
           <span className="masthead-separator">·</span>
-          <span className="masthead-issue">VOL. I • TOAMNĂ 2026</span>
+          <span className="masthead-issue">
+            {appMode === 'editorial' ? 'VOL. I • TOAMNĂ 2026' : 'REȚETE CANONICE & TEHNICI CULINARE'}
+          </span>
         </div>
         <div className="masthead-edition-cities">
           {!isOnline ? (
@@ -64,7 +68,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onNavigateToList}
           role="button"
           tabIndex={0}
-          title="Mergi la Catalogul Editorial"
+          title="Mergi la Catalogul de Rețete"
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
@@ -77,7 +81,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="brand-text">
             <span className="brand-title">ATLAS GASTRONOMIC</span>
-            <span className="brand-subtitle">Cultură Gastronomică & Tradiție Canonică Europeană</span>
+            <span className="brand-subtitle">
+              {appMode === 'editorial'
+                ? 'Cultură Gastronomică & Tradiție Canonică Europeană'
+                : 'Rețete Autentice & Ghid Culinar Pas cu Pas'}
+            </span>
           </div>
         </div>
       </div>
@@ -89,11 +97,13 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="nav-left">
             {activeRecipeTitle && currentView !== 'list' ? (
               <div className="header-recipe-tag" title={activeRecipeTitle}>
-                <span className="recipe-tag-prefix">Articol canonic:</span>
+                <span className="recipe-tag-prefix">{appMode === 'editorial' ? 'Articol canonic:' : 'Rețetă:'}</span>
                 <span className="recipe-tag-title">{activeRecipeTitle}</span>
               </div>
             ) : (
-              <span className="nav-journal-dateline">Bucătărie Documentată Istoric</span>
+              <span className="nav-journal-dateline">
+                {appMode === 'editorial' ? 'Bucătărie Documentată Istoric' : 'Rețete Verificate & Ghid de Gătit'}
+              </span>
             )}
           </div>
 

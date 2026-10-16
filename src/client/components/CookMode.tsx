@@ -232,8 +232,8 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
           aria-label="Ieși din Cook Mode"
         >
           <ArrowLeft size={18} />
-          <span className="btn-cook-exit-label-full">Cook Mode</span>
-          <span className="btn-cook-exit-label-short">Ieși</span>
+          <span className="btn-cook-exit-label-full">Înapoi la Rețetă</span>
+          <span className="btn-cook-exit-label-short">Înapoi</span>
         </button>
 
         <div className="cook-header-title-box">
@@ -278,12 +278,12 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
             {isParallelRoot ? (
               <div className="cook-dependency-badge cook-dependency-badge--parallel">
                 <GitFork size={14} />
-                <strong>Ramură Independentă:</strong> Se poate pregăti în paralel sau în avans
+                <strong>Pregătire în paralel:</strong> Se poate pregăti separat sau în avans
               </div>
             ) : Array.isArray(currentStep.depends_on) && currentStep.depends_on.length > 0 ? (
               <div className="cook-dependency-badge cook-dependency-badge--depends">
                 <GitFork size={14} />
-                Continuă după pașii:{' '}
+                Continuă după:{' '}
                 {currentStep.depends_on
                   .map((dep) => {
                     const found = steps.find((s) => s.step_id === dep);
@@ -438,7 +438,7 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
               <div className="cook-panel cook-thermal-panel">
                 <Thermometer size={20} className="cook-thermal-icon" />
                 <div>
-                  <div className="cook-panel-eyebrow">Control Termic Critic</div>
+                  <div className="cook-panel-eyebrow">Temperatură Recomandată</div>
                   <div className="cook-thermal-value">
                     {currentStep.thermal_constraints.map((tc, idx) => (
                       <span key={idx}>
@@ -480,7 +480,7 @@ export const CookMode: React.FC<CookModeProps> = ({ recipe, servings, onExit }) 
                       />
                       <div>
                         <strong className="cook-risk-title">
-                          [{isIrreversible ? 'Risc Ireversibil' : 'Atenție Culinară'}]:
+                          [{isIrreversible ? 'Atenție Sporită' : 'Sfat Culinar'}]:
                         </strong>{' '}
                         {risk.message}
                       </div>

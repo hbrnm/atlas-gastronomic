@@ -72,7 +72,7 @@ test('Product Acceptance Test: All 4 Canonical Recipes in Real Product Experienc
   // SCENARIO 1: CATALOG & SEARCH FOR ALL 4 CANONICAL RECIPES
   // =========================================================================
   console.log('--- SCENARIO 1: CATALOG & SEARCH VERIFICATION ---');
-  await page.goto(baseUrl, { waitUntil: 'networkidle0' });
+  await page.goto(`${baseUrl}?mode=editorial`, { waitUntil: 'networkidle0' });
 
   // 1. Verify Catalog shows all 4 canonical recipes
   await page.waitForSelector('.recipe-grid');

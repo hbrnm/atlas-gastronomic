@@ -74,7 +74,7 @@ test('Browser Acceptance Test: Complete Atlas Gastronomic Recipe Core V1 Scenari
   // SCENARIO A: CATALOG
   // =========================================================================
   console.log('--- SCENARIO A: CATALOG ---');
-  await page.goto(baseUrl, { waitUntil: 'networkidle0' });
+  await page.goto(`${baseUrl}?mode=editorial`, { waitUntil: 'networkidle0' });
 
   // A1. Verify Catalog loaded
   const titleText = await page.$eval('h1', (el) => el.textContent?.trim());

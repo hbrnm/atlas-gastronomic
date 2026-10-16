@@ -1289,12 +1289,14 @@ body {
   margin-top: auto;
 }
 
-.btn-card-cook {
-  flex: 1;
+.btn-card-detail {
+  flex: 1.4;
   min-height: 40px;
+  font-weight: 600;
 }
 
-.btn-card-detail {
+.btn-card-cook {
+  flex: 1;
   min-height: 40px;
 }
 
