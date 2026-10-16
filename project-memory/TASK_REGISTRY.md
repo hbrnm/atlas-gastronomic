@@ -24,3 +24,7 @@
 | TASK-0020 | Phase 009 Server-Side Security, Identity & Anti-Impersonation | completed | High | Server-resolved actor keys, bot approval rejected (403) |
 | TASK-0021 | Phase 009 UI EditorialPanel & Dynamic SQLite Consumer Binding | completed | High | RecipeEditor tab 5 + RecipeList/Detail/CookMode dynamic binding |
 | TASK-0022 | Phase 009 Verification & Test Suites (19/19 Phase 009, 72/72 local) | completed | Critical | 100% typecheck, build and automated test suites passing |
+| TASK-0023 | Phase 010 Audit Trail Endpoint (GET /api/recipes/:id/editorial/audit) & UI Timeline | completed | Critical | Backend repository, Express route, and EditorialPanel UI |
+| TASK-0024 | Phase 010 Canonical Provenance Auto-Fill in EditorialPanel | completed | High | 12 canonical images with metadata auto-fill from provenance register |
+| TASK-0025 | Phase 010 PWA Offline Cache v2 & Kitchen Mode UI Indicator | completed | High | sw.js precache for 12 images + /api/editorial + WifiOff header badge |
+| TASK-0026 | Phase 010 CI/CD Workflow (.github/workflows/ci.yml) & Staging Environmental Guard | completed | Critical | 73/73 tests passing deterministically (1 skipped environmental) |
