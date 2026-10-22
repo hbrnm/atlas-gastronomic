@@ -54,3 +54,10 @@
 - Human approval gate: All profiles remain human-approved only.
 
 
+
+## Code Review & Hardening (`/requesting-code-review` — 2026-10-22)
+- **Reviewer Verdict:** Assessment passed with fixes; all findings resolved.
+- **Critical Fix Applied:** In `src/server/db.ts:431-446`, removed the aggressive `!isCanonical` and `rec_mv` deletion logic from `purgeTestRecipes(db)`. Deletion is now strictly confined to known legacy seeds (`rec_supa_legume_001`, `rec_mamaliga_002`) and explicit test signatures (`rec_staging_test*`, `rec_test_*`, titles containing "test de persisten", "persistență test", "staging test"). User-authored and newly drafted editorial recipes are guaranteed safe across server restarts.
+- **Important Fix Applied:** In `tests/production-deployment-verification.test.ts:128`, eliminated the `COMPLETE_CATALOGUE` argument from `startServer(PORT_2, testDbFile)` upon restart, verifying that the 13th custom recipe survives restart under the true unmasked production startup path.
+- **Minor Fix Applied:** In `src/client/App.tsx:76-88`, added URL query param synchronization (`window.history.replaceState`) on mode toggling to ensure consistency across page reloads.
+- **Verification:** All 73 automated tests passing, 0 TypeScript errors, production bundle built and deployed to `main`.
