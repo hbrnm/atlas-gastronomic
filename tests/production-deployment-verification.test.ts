@@ -125,7 +125,7 @@ test('Production Deployment & Private Access Lifecycle: Verification on Disk wit
 
   // Restart server on a different port using the exact same SQLite database file on disk
   const PORT_2 = 3341;
-  restartedServer = await startServer(PORT_2, testDbFile, COMPLETE_CATALOGUE);
+  restartedServer = await startServer(PORT_2, testDbFile);
 
   const restartedBaseUrl = `http://localhost:${PORT_2}`;
 

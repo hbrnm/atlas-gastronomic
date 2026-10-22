@@ -76,6 +76,15 @@ export const App: React.FC = () => {
     setAppMode(mode);
     try {
       localStorage.setItem('atlas_app_mode', mode);
+      if (typeof window !== 'undefined' && window.history && window.location) {
+        const url = new URL(window.location.href);
+        if (mode === 'editorial') {
+          url.searchParams.set('mode', 'editorial');
+        } else {
+          url.searchParams.delete('mode');
+        }
+        window.history.replaceState({}, '', url.toString());
+      }
     } catch {}
   };
 

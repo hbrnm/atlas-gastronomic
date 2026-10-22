@@ -429,17 +429,20 @@ export function initDatabase(dbPath?: string, seedRecipes?: Recipe[]): DatabaseS
 }
 
 export function purgeTestRecipes(db: DatabaseSync): void {
-  const canonicalIds = new Set(COMPLETE_CATALOGUE.map((r) => r.id));
-  const canonicalRecipeIds = new Set(COMPLETE_CATALOGUE.map((r) => r.recipe_id));
-
   const rows = db.prepare('SELECT id, recipe_id, title FROM recipes').all() as { id: string; recipe_id: string; title: string }[];
   const deleteStmt = db.prepare('DELETE FROM recipes WHERE id = ?');
 
   for (const r of rows) {
-    const isCanonical = canonicalIds.has(r.id) || canonicalRecipeIds.has(r.recipe_id);
     const isLegacySeed = r.id === 'rec_supa_legume_001' || r.id === 'rec_mamaliga_002';
-    const isScratchTest = r.id.startsWith('rec_mv') || r.title.toLowerCase().includes('persisten');
-    if (!isCanonical || isLegacySeed || isScratchTest) {
+    const titleLower = (r.title || '').toLowerCase();
+    const isExplicitTestRecipe =
+      r.id.startsWith('rec_staging_test') ||
+      r.id.startsWith('rec_test_') ||
+      titleLower.includes('test de persisten') ||
+      titleLower.includes('persistență test') ||
+      titleLower.includes('staging test');
+
+    if (isLegacySeed || isExplicitTestRecipe) {
       deleteStmt.run(r.id);
     }
   }
